@@ -3,12 +3,12 @@
 The release workflow produces two distribution forms from the same tagged source:
 
 - a `dottype` .NET global-tool package and symbol package for nuget.org;
-- self-contained `win-x64` and `win-arm64` portable executables plus a WinGet 1.12 multi-file manifest set.
+- self-contained `win-x64` and `win-arm64` portable executables plus a WinGet 1.10 multi-file manifest set.
 
 ## One-time setup
 
-1. Create `https://github.com/DouglasCleghorn/dottype` and push this repository.
-2. Create a protected GitHub environment named `release`.
+1. Confirm the public repository and `origin` are `https://github.com/DouglasCleghorn/dottype`.
+2. Confirm the protected GitHub environment named `release` requires review and allows `v*` tags.
 3. Confirm `dottype` is available to your NuGet account. Configure a trusted-publishing policy with repository owner `DouglasCleghorn`, repository `dottype`, workflow filename **`release.yml`**, and environment `release`. Select the package scope needed for a first publish; package ownership/name availability must be confirmed on nuget.org.
 4. Add the nuget.org profile name—not an email address—as the GitHub environment variable `NUGET_USER`.
 5. For WinGet's first release, submit the generated multi-file manifest directory to `microsoft/winget-pkgs`. Once accepted, later versions may be submitted with `wingetcreate update DouglasCleghorn.dottype`.
@@ -50,6 +50,8 @@ Before the first WinGet submission, run `winget validate --manifest <directory>`
 on a machine with WinGet installed and test installation/uninstallation using
 the published assets. The workflow's fallback hash checks are not a substitute
 for WinGet validation. Smoke-test ARM64 on an ARM64 machine as well.
+Schema 1.10 is used for compatibility with the WinGet client on hosted Windows
+runners; no 1.12-only fields are required. Portable installers omit `Scope`.
 
 Publish the executables together with the generated application and .NET runtime
 license/notice assets. Submit manifests generated from those exact release

@@ -39,13 +39,16 @@ foreach ($content in $allContent) {
     if ($content -notmatch "(?m)^PackageVersion: $([regex]::Escape($Version))$") {
         throw "A WinGet manifest has the wrong package version."
     }
-    if ($content -notmatch "(?m)^ManifestVersion: 1\.12\.0$") {
-        throw "A WinGet manifest does not use schema version 1.12.0."
+    if ($content -notmatch "(?m)^ManifestVersion: 1\.10\.0$") {
+        throw "A WinGet manifest does not use schema version 1.10.0."
     }
 }
 
 $installerPath = Join-Path $resolvedDirectory "$packageIdentifier.installer.yaml"
 $installerContent = Get-Content -LiteralPath $installerPath -Raw
+if ($installerContent -match '(?m)^Scope:') {
+    throw 'Portable installer manifests must not specify Scope.'
+}
 $expectedHashes = @(
     (Get-FileHash -LiteralPath $X64Installer -Algorithm SHA256).Hash,
     (Get-FileHash -LiteralPath $Arm64Installer -Algorithm SHA256).Hash

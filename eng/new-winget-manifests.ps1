@@ -29,20 +29,19 @@ $manifestDirectory = Join-Path $resolvedOutput "manifests/d/DouglasCleghorn/dott
 New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
 
 $versionManifest = @"
-# yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.12.0.schema.json
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.10.0.schema.json
 PackageIdentifier: $packageIdentifier
 PackageVersion: $Version
 DefaultLocale: en-US
 ManifestType: version
-ManifestVersion: 1.12.0
+ManifestVersion: 1.10.0
 "@
 
 $installerManifest = @"
-# yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 PackageIdentifier: $packageIdentifier
 PackageVersion: $Version
 InstallerType: portable
-Scope: user
 UpgradeBehavior: uninstallPrevious
 Commands:
 - dottype
@@ -54,11 +53,11 @@ Installers:
   InstallerUrl: $releaseRoot/dottype-win-arm64.exe
   InstallerSha256: $arm64Hash
 ManifestType: installer
-ManifestVersion: 1.12.0
+ManifestVersion: 1.10.0
 "@
 
 $localeManifest = @"
-# yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 PackageIdentifier: $packageIdentifier
 PackageVersion: $Version
 PackageLocale: en-US
@@ -85,7 +84,7 @@ Tags:
 - poco
 ReleaseNotesUrl: https://github.com/DouglasCleghorn/dottype/releases/tag/v$Version
 ManifestType: defaultLocale
-ManifestVersion: 1.12.0
+ManifestVersion: 1.10.0
 "@
 
 function Write-Utf8Lf([string] $Path, [string] $Content) {

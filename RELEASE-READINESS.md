@@ -21,7 +21,7 @@ submission was published during this review.
 - Self-contained Windows x64 and ARM64 executables build; x64 passes the same
   subprocess smoke tests. Application and runtime license notices are included
   among the release assets.
-- All three WinGet manifests pass Microsoft's published 1.12 JSON schemas;
+- All three WinGet manifests use Microsoft's published 1.10 JSON schemas;
   installer SHA-256 values match the freshly published local executables.
 - Both workflow YAML files and their 25 command blocks parse successfully;
   all release PowerShell scripts parse. Formatting verification passes.
@@ -40,11 +40,16 @@ submission was published during this review.
 
 1. Build the committed candidate from `DouglasCleghorn/dottype` so Source Link
    receives the real commit and remote. Do not publish old pre-commit artifacts.
+   The public repository is now created and the reviewed branch is pushed.
+   A committed local build verifies working Source Link with zero warnings.
 2. Run the Windows/Linux/macOS CI matrix for that commit. Only Windows x64
    execution has been verified here. Run the ARM64 executable on ARM64 hardware.
 3. Confirm NuGet package-name availability/ownership and configure the protected
    `release` environment, `NUGET_USER`, and NuGet trusted-publishing policy.
    The policy's workflow filename is `release.yml`.
+   The GitHub release environment already requires maintainer review and `v*`
+   tags. Secret scanning, push protection, vulnerability alerts, private reporting,
+   and read-only workflow defaults have been enabled.
 4. Replace the 0.1.0 changelog's `TBD` with the intended release date, then create
    `v0.1.0`. The release workflow deliberately rejects an undated release entry
    or a project/tag/version mismatch. Start with publishing disabled.
