@@ -38,12 +38,15 @@ submission was published during this review.
 
 ## Release blockers and external checks
 
-1. Build the committed candidate from `DouglasCleghorn/dottype` so Source Link
-   receives the real commit and remote. Do not publish old pre-commit artifacts.
-   The public repository is now created and the reviewed branch is pushed.
-   A committed local build verifies working Source Link with zero warnings.
-2. Run the Windows/Linux/macOS CI matrix for that commit. Only Windows x64
-   execution has been verified here. Run the ARM64 executable on ARM64 hardware.
+The public repository is created and the reviewed branch is pushed. A committed
+local build verifies Source Link with zero warnings. The Windows/Linux/macOS
+[CI matrix for `4d2dce4`](https://github.com/DouglasCleghorn/dottype/actions/runs/33980686946)
+passed, including NuGet package verification and native WinGet manifest validation.
+
+1. Publish artifacts built from the final tagged commit so Source Link receives
+   the correct commit and remote. Do not publish old pre-commit artifacts.
+2. Run the ARM64 executable on ARM64 hardware; cross-publishing alone does not
+   verify execution on that architecture.
 3. Confirm NuGet package-name availability/ownership and configure the protected
    `release` environment, `NUGET_USER`, and NuGet trusted-publishing policy.
    The policy's workflow filename is `release.yml`.
@@ -53,9 +56,9 @@ submission was published during this review.
 4. Replace the 0.1.0 changelog's `TBD` with the intended release date, then create
    `v0.1.0`. The release workflow deliberately rejects an undated release entry
    or a project/tag/version mismatch. Start with publishing disabled.
-5. WinGet is unavailable locally. Run `winget validate` and install/uninstall
+5. Native `winget validate` passed in Windows CI. Perform install/uninstall
    validation on Windows using the released assets before submitting the first
-   manifest PR. JSON-schema/hash checks do not test WinGet installer behavior.
+   manifest PR. Manifest validation does not test WinGet installer behavior.
 
 ## Scope of the first release
 
