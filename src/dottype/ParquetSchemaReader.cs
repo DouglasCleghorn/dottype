@@ -1,7 +1,7 @@
 using Parquet;
 using Parquet.Schema;
 
-namespace Dottype;
+namespace dottype;
 
 internal static class ParquetSchemaReader
 {

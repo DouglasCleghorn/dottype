@@ -16,14 +16,14 @@ The release workflow produces two distribution forms from the same tagged source
 ## Release checklist
 
 1. Replace `TBD` with the release date and move relevant entries from `Unreleased` in `CHANGELOG.md`.
-2. Confirm `Version` in `src/Dottype/Dottype.csproj` matches the intended release.
+2. Confirm `Version` in `src/dottype/dottype.csproj` matches the intended release.
 3. Run:
 
    ```powershell
    dotnet restore dottype.slnx --locked-mode
    dotnet test dottype.slnx -c Release --no-restore
-   dotnet package list --project src/Dottype/Dottype.csproj --include-transitive --vulnerable --no-restore
-   dotnet pack src/Dottype/Dottype.csproj -c Release --no-restore -p:RuntimeIdentifiers= -o artifacts/package
+   dotnet package list --project src/dottype/dottype.csproj --include-transitive --vulnerable --no-restore
+   dotnet pack src/dottype/dottype.csproj -c Release --no-restore -p:RuntimeIdentifiers= -o artifacts/package
    ./eng/verify-package.ps1
    ./eng/publish-portables.ps1
    ./eng/smoke-test.ps1 -Executable artifacts/portable/release/dottype-win-x64.exe

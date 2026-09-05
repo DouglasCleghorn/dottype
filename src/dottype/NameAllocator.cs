@@ -1,4 +1,4 @@
-namespace Dottype;
+namespace dottype;
 
 internal sealed class NameAllocator
 {

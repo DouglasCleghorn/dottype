@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Dottype;
+namespace dottype;
 
 internal static class JsonSchemaReader
 {

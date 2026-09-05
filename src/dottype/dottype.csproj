@@ -4,8 +4,8 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-    <AssemblyName>Dottype</AssemblyName>
-    <RootNamespace>Dottype</RootNamespace>
+    <AssemblyName>dottype</AssemblyName>
+    <RootNamespace>dottype</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dottype</ToolCommandName>
     <PackageId>dottype</PackageId>
@@ -38,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Dottype.Tests" />
+    <InternalsVisibleTo Include="dottype.tests" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
     <None Include="../../CHANGELOG.md" Pack="true" PackagePath="/" />
     <None Include="../../RELEASING.md" Pack="true" PackagePath="/" />

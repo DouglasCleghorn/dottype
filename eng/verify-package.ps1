@@ -28,10 +28,10 @@ try {
     $entries = @($package.Entries | ForEach-Object { $_.FullName })
     $required = @(
         "tools/net10.0/any/DotnetToolSettings.xml",
-        "tools/net10.0/any/Dottype.dll",
-        "tools/net10.0/any/Dottype.xml",
-        "tools/net10.0/any/Dottype.deps.json",
-        "tools/net10.0/any/Dottype.runtimeconfig.json",
+        "tools/net10.0/any/dottype.dll",
+        "tools/net10.0/any/dottype.xml",
+        "tools/net10.0/any/dottype.deps.json",
+        "tools/net10.0/any/dottype.runtimeconfig.json",
         "tools/net10.0/any/Parquet.dll",
         "README.md",
         "CHANGELOG.md",
@@ -41,12 +41,12 @@ try {
     )
 
     foreach ($entry in $required) {
-        if ($entries -notcontains $entry) {
+        if ($entries -cnotcontains $entry) {
             throw "Package is missing required entry '$entry'."
         }
     }
 
-    if ($entries | Where-Object { $_ -match '(?i)(Dottype\.Tests|Microsoft\.CodeAnalysis|xunit|testhost|\.cs$)' }) {
+    if ($entries | Where-Object { $_ -match '(?i)(dottype\.tests|Microsoft\.CodeAnalysis|xunit|testhost|\.cs$)' }) {
         throw 'The release package contains test tooling or loose source files.'
     }
 
@@ -71,7 +71,7 @@ try {
     }
 
     $metadata = $nuspec.package.metadata
-    if ($metadata.id -ne "dottype") {
+    if ($metadata.id -cne "dottype") {
         throw "Unexpected package ID '$($metadata.id)'."
     }
     if ($metadata.version -ne $ExpectedVersion) {
@@ -95,8 +95,11 @@ try {
     finally {
         $reader.Dispose()
     }
-    if ($toolSettings.DotNetCliTool.Commands.Command.Name -ne "dottype") {
+    if ($toolSettings.DotNetCliTool.Commands.Command.Name -cne "dottype") {
         throw "The .NET tool command name is not 'dottype'."
+    }
+    if ($toolSettings.DotNetCliTool.Commands.Command.EntryPoint -cne "dottype.dll") {
+        throw "The .NET tool entry point is not 'dottype.dll'."
     }
 }
 finally {
@@ -106,7 +109,7 @@ finally {
 $symbolPackage = [System.IO.Compression.ZipFile]::OpenRead($symbols[0].FullName)
 try {
     $symbolEntries = @($symbolPackage.Entries | ForEach-Object { $_.FullName })
-    if ($symbolEntries -notcontains "tools/net10.0/any/Dottype.pdb") {
+    if ($symbolEntries -cnotcontains "tools/net10.0/any/dottype.pdb") {
         throw "Symbol package is missing the portable PDB."
     }
 }

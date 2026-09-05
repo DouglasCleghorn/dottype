@@ -39,11 +39,11 @@ jobs:
         run: dotnet build dottype.slnx -c Release --no-restore
 
       - name: Test
-        run: dotnet test --project tests/Dottype.Tests/Dottype.Tests.csproj -c Release --no-build --no-restore --minimum-expected-tests 1
+        run: dotnet test --project tests/dottype.tests/dottype.tests.csproj -c Release --no-build --no-restore --minimum-expected-tests 1
 
       - name: Pack NuGet tool
         if: runner.os == 'Linux'
-        run: dotnet pack src/Dottype/Dottype.csproj -c Release --no-build --no-restore -p:RuntimeIdentifiers= -o artifacts/package
+        run: dotnet pack src/dottype/dottype.csproj -c Release --no-build --no-restore -p:RuntimeIdentifiers= -o artifacts/package
 
       - name: Verify NuGet package
         if: runner.os == 'Linux'
@@ -52,7 +52,7 @@ jobs:
 
       - name: Smoke test CLI
         shell: pwsh
-        run: ./eng/smoke-test.ps1 -Executable dotnet -PrefixArguments @('exec', 'src/Dottype/bin/Release/net10.0/Dottype.dll')
+        run: ./eng/smoke-test.ps1 -Executable dotnet -PrefixArguments @('exec', 'src/dottype/bin/Release/net10.0/dottype.dll')
 
       - name: Publish Windows portable executables
         if: runner.os == 'Windows'

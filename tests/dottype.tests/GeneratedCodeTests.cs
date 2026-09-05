@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Parquet;
 using Parquet.Schema;
 
-namespace Dottype.Tests;
+namespace dottype.tests;
 
 public sealed class GeneratedCodeTests
 {

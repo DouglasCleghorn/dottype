@@ -88,7 +88,7 @@ The project currently targets .NET 10.
 ```powershell
 dotnet restore dottype.slnx --locked-mode
 dotnet test dottype.slnx -c Release --no-restore
-dotnet pack src/Dottype/Dottype.csproj -c Release --no-restore -p:RuntimeIdentifiers= -o artifacts/package
+dotnet pack src/dottype/dottype.csproj -c Release --no-restore -p:RuntimeIdentifiers= -o artifacts/package
 ./eng/verify-package.ps1
 
 dotnet tool install --global `

@@ -16,7 +16,7 @@ if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$') {
 }
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $repositoryRoot "src/Dottype/Dottype.csproj"
+$project = Join-Path $repositoryRoot "src/dottype/dottype.csproj"
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputDirectory, $repositoryRoot)
 $releaseDirectory = Join-Path $resolvedOutput "release"
 New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
@@ -48,12 +48,12 @@ foreach ($runtime in @("win-x64", "win-arm64")) {
         throw "Publishing dottype for $runtime failed with exit code $LASTEXITCODE."
     }
 
-    $publishedExecutable = Join-Path $publishDirectory "Dottype.exe"
+    $publishedExecutable = Join-Path $publishDirectory "dottype.exe"
     $releaseExecutable = Join-Path $releaseDirectory "dottype-$runtime.exe"
     Copy-Item -LiteralPath $publishedExecutable -Destination $releaseExecutable -Force
 
     # A self-contained release also redistributes the runtime and its native dependencies.
-    $assets = Get-Content (Join-Path $repositoryRoot 'src/Dottype/obj/project.assets.json') -Raw |
+    $assets = Get-Content (Join-Path $repositoryRoot 'src/dottype/obj/project.assets.json') -Raw |
         ConvertFrom-Json -AsHashtable
     $runtimePackage = $assets.project.frameworks['net10.0'].downloadDependencies |
         Where-Object { $_.name -eq "Microsoft.NETCore.App.Runtime.$runtime" }

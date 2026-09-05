@@ -1,6 +1,6 @@
 using System.IO.Compression;
 
-namespace Dottype;
+namespace dottype;
 
 internal enum InputCompression
 {

@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="src/Dottype/Dottype.csproj" />
-  <Project Path="tests/Dottype.Tests/Dottype.Tests.csproj" />
+  <Project Path="src/dottype/dottype.csproj" />
+  <Project Path="tests/dottype.tests/dottype.tests.csproj" />
 </Solution>

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Dottype;
+namespace dottype;
 
 internal static class CSharpWriter
 {

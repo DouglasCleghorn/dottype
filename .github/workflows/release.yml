@@ -50,7 +50,7 @@ jobs:
           if ($env:GITHUB_REF -ne "refs/tags/v$version") {
             throw "Select tag v$version when dispatching this workflow."
           }
-          [xml] $project = Get-Content src/Dottype/Dottype.csproj -Raw
+          [xml] $project = Get-Content src/dottype/dottype.csproj -Raw
           if ($project.Project.PropertyGroup.Version -ne $version) {
             throw 'Project version must match the release tag.'
           }
@@ -73,10 +73,10 @@ jobs:
         run: dotnet build dottype.slnx -c Release --no-restore
 
       - name: Test
-        run: dotnet test --project tests/Dottype.Tests/Dottype.Tests.csproj -c Release --no-build --no-restore --minimum-expected-tests 1
+        run: dotnet test --project tests/dottype.tests/dottype.tests.csproj -c Release --no-build --no-restore --minimum-expected-tests 1
 
       - name: Pack NuGet tool
-        run: dotnet pack src/Dottype/Dottype.csproj -c Release --no-build --no-restore -p:RuntimeIdentifiers= -o artifacts/package
+        run: dotnet pack src/dottype/dottype.csproj -c Release --no-build --no-restore -p:RuntimeIdentifiers= -o artifacts/package
 
       - name: Verify NuGet package
         shell: pwsh

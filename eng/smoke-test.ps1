@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $scratch = [System.IO.Directory]::CreateTempSubdirectory('dottype-smoke-').FullName
 $payload = [System.Text.Encoding]::UTF8.GetBytes('{"id":1,"display-name":"Alice"}')
 
-function Invoke-Dottype([string[]] $CliArguments, [byte[]] $StandardInput) {
+function Invoke-dottype([string[]] $CliArguments, [byte[]] $StandardInput) {
     $start = [System.Diagnostics.ProcessStartInfo]::new($Executable)
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
@@ -61,9 +61,9 @@ try {
             finally { $buffer.Dispose() }
         }
         [System.IO.File]::WriteAllBytes($path, $bytes)
-        $source = Invoke-Dottype -CliArguments @($path)
+        $source = Invoke-dottype -CliArguments @($path)
         if ($source -notmatch 'public partial class customers\s') { throw 'Filename inference failed.' }
-        $source = Invoke-Dottype -CliArguments @('-', '--format', 'json', '--compression', $compression) -StandardInput $bytes
+        $source = Invoke-dottype -CliArguments @('-', '--format', 'json', '--compression', $compression) -StandardInput $bytes
         if ($source -notmatch 'public partial class Root\s') { throw 'Stdin name inference failed.' }
     }
     Write-Host 'Verified CLI file and binary-stdin generation for plain, gzip, and Brotli JSON.'

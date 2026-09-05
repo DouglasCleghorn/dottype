@@ -2,7 +2,7 @@ using System.Text;
 using Parquet;
 using Parquet.Schema;
 
-namespace Dottype.Tests;
+namespace dottype.tests;
 
 public sealed class SchemaReaderTests
 {

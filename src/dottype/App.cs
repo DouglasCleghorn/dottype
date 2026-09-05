@@ -1,4 +1,4 @@
-namespace Dottype;
+namespace dottype;
 
 internal static class App
 {

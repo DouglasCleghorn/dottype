@@ -1,6 +1,6 @@
 using System.Reflection.Metadata;
 
-namespace Dottype.Tests;
+namespace dottype.tests;
 
 public sealed class BuildPrivacyTests
 {
