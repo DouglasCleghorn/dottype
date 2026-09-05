@@ -4,7 +4,7 @@ All notable changes to dottype are documented here.
 
 ## [Unreleased]
 
-## [0.1.0] - TBD
+## [0.1.0] - 2026-09-05
 
 - Generate partial C# POCOs from JSON, CSV, and Parquet sources.
 - Preserve source field names when valid and record reversible metadata when changed.
