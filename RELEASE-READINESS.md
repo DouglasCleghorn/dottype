@@ -24,6 +24,10 @@ sampling. CHANGELOG.md includes explicit upgrade instructions. The existing
   subprocess file and binary-stdin checks for plain, gzip, and Brotli JSON.
 - Formatting verification passes after correcting whitespace and import order.
 - Both workflow YAML files and release PowerShell scripts parse successfully.
+- Initial hosted CI passed all 215 tests on Linux/macOS but exposed a verification
+  script exit-code bug: the final expected failure leaked into the runner's exit
+  status. The helpers now clear that code only after validating the expected
+  `dottype001` failure; unexpected failures still stop verification.
 - Gitleaks reports no secrets in the 86-file publication snapshot or outgoing
   branch history. A separate source path/email scan reports no findings.
 - The additional VS Code UI check could not start because VS Code's updater

@@ -11,6 +11,8 @@ function Invoke-Build([string[]] $Arguments, [switch] $ExpectFailure) {
     $output = ($output | ForEach-Object { "$_" }) -join "`n"
     if ($ExpectFailure) {
         if ($LASTEXITCODE -eq 0 -or $output -notmatch 'dottype001') { throw "Expected dottype001: $output" }
+        # Do not propagate the expected failure to the CI PowerShell wrapper.
+        $global:LASTEXITCODE = 0
     } elseif ($LASTEXITCODE -ne 0) { throw "MSBuild failed: $output" }
     return $output
 }

@@ -10,6 +10,9 @@ function Invoke-Dotnet([string[]] $Arguments, [switch] $ExpectFailure) {
     $output = (& dotnet @Arguments 2>&1 | ForEach-Object { "$_" }) -join "`n"
     if ($ExpectFailure) {
         if ($LASTEXITCODE -eq 0 -or $output -notmatch 'dottype001') { throw "Expected dottype001: $output" }
+        # GitHub's pwsh wrapper propagates LASTEXITCODE after the script returns.
+        # A verified negative test is successful verification, not a failed step.
+        $global:LASTEXITCODE = 0
     } elseif ($LASTEXITCODE -ne 0) { throw "dotnet failed: $output" }
     return $output
 }
