@@ -1,6 +1,6 @@
 # Release readiness — 2026-09-06
 
-## dottype 0.2.0 candidate
+## dottype 0.2.0
 
 The CLI 0.1.0 is already published on NuGet. Version 0.2.0 adds the first
 `dottype.Build` package and changes the CLI argument contract and default
@@ -34,19 +34,27 @@ sampling. CHANGELOG.md includes explicit upgrade instructions. The existing
   holds its startup mutex. Editor generator unit tests pass; the earlier tested
   extension versions remain documented in USAGE.md.
 
-## Publication gates
+## Release results
 
-1. Push the reviewed source and require successful Windows/Linux/macOS CI for
-   the release commit before dispatching its annotated `v0.2.0` tag.
-2. Run the Release workflow with publishing disabled and inspect its artifacts.
-   It now executes the uploaded ARM64 binary on a native Windows ARM64 runner.
-3. Add the exact `dottype.Build` package ID to the existing NuGet trusted policy,
-   retaining the same repository, `release.yml`, and protected `release`
-   environment. The policy currently permits only `dottype`.
-4. Publish through the protected environment. The publishing job downloads the
-   same artifacts validated by that run and uses the versioned changelog for
-   GitHub release notes. Do not publish old local artifacts or overwrite an
-   existing published version.
+- Annotated tag `v0.2.0` points to commit `775ac89533fcb65c519a8dcb5ad4862d10fdced1`.
+- [Windows/Linux/macOS CI](https://github.com/DouglasCleghorn/dottype/actions/runs/34046135967)
+  passed for that commit, including packed integration checks on all platforms.
+- The [unpublished candidate run](https://github.com/DouglasCleghorn/dottype/actions/runs/34046326229)
+  passed, including execution of its uploaded binary on native Windows ARM64.
+  Downloaded packages passed inspection and all release checksums matched.
+- [GitHub publication](https://github.com/DouglasCleghorn/dottype/actions/runs/34046572938)
+  succeeded. The [0.2.0 release](https://github.com/DouglasCleghorn/dottype/releases/tag/v0.2.0)
+  contains both packages, CLI symbols, Windows x64/ARM64 binaries, license notices,
+  checksums, and upgrade notes. Published asset digests match SHA256SUMS.txt.
+- With maintainer authorization, the existing NuGet trusted policy now permits
+  the exact IDs `dottype` and `dottype.Build`, retaining the same repository,
+  `release.yml`, and protected `release` environment.
+- [NuGet publication](https://github.com/DouglasCleghorn/dottype/actions/runs/34048160727)
+  succeeded for both 0.2.0 packages and the CLI symbols. NuGet performs validation
+  and indexing after accepting uploads; install/restore availability follows.
+
+The publishing jobs use the same artifacts validated by their respective runs.
+Existing versioned assets and the published 0.1.0 package were preserved.
 
 The live CI and release workflow results are authoritative for publication
 status. See [RELEASING.md](RELEASING.md) for the procedure and
