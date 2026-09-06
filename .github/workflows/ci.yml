@@ -45,6 +45,20 @@ jobs:
         if: runner.os == 'Linux'
         run: dotnet pack src/dottype/dottype.csproj -c Release --no-build --no-restore -p:RuntimeIdentifiers= -o artifacts/package
 
+      - name: Test build integration and editor generator
+        run: dotnet test --project tests/dottype.Build.tests/dottype.Build.tests.csproj -c Release --no-build --no-restore --minimum-expected-tests 1
+
+      - name: Pack build integration
+        run: dotnet pack src/dottype.Build/dottype.Build.csproj -c Release --no-build --no-restore -o artifacts/package
+
+      - name: Verify build integration package
+        shell: pwsh
+        run: ./eng/verify-build-package.ps1
+
+      - name: Verify Visual Studio project integration
+        shell: pwsh
+        run: ./eng/verify-visual-studio.ps1
+
       - name: Verify NuGet package
         if: runner.os == 'Linux'
         shell: pwsh
@@ -64,47 +78,18 @@ jobs:
         shell: pwsh
         run: ./eng/smoke-test.ps1 -Executable artifacts/portable/release/dottype-win-x64.exe
 
-      - name: Generate WinGet manifests
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: >-
-          ./eng/new-winget-manifests.ps1
-          -Version 0.1.0
-          -X64Installer artifacts/portable/release/dottype-win-x64.exe
-          -Arm64Installer artifacts/portable/release/dottype-win-arm64.exe
-
-      - name: Verify WinGet manifests and hashes
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./eng/verify-winget-manifests.ps1
-
-      - name: Validate WinGet manifests when available
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (Get-Command winget -ErrorAction SilentlyContinue) {
-            winget --version
-            winget validate --manifest artifacts/winget/manifests/d/DouglasCleghorn/dottype/0.1.0
-            if ($LASTEXITCODE -ne 0) { throw "WinGet manifest validation failed." }
-          }
-          else {
-            Write-Host "winget is not available on this runner; generation checks still completed."
-          }
-
       - name: Upload NuGet packages
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: dottype-nuget-0.1.0
+          name: dottype-nuget-0.2.0
           path: artifacts/package/*
           if-no-files-found: error
 
-      - name: Upload Windows and WinGet artifacts
+      - name: Upload Windows portable artifacts
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: dottype-winget-0.1.0
-          path: |
-            artifacts/portable/release/*
-            artifacts/winget/manifests/**/*
+          name: dottype-windows-0.2.0
+          path: artifacts/portable/release/*
           if-no-files-found: error

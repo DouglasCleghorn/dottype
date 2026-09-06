@@ -1,118 +1,67 @@
+![dottype](assets/icon.png)
+
 # dottype
 
-`dottype` generates a small, serialization-oriented C# POCO from JSON, CSV, or Parquet data. It preserves source field names exactly whenever C# permits it. When it must repair a name, the generated property carries `DataMember` and `JsonPropertyName` metadata containing the original spelling.
+Generate C# types from example JSON, CSV, or Parquet files. Use `dottype.Build` for compilation and IntelliSense, or the `dottype` CLI to save generated source.
 
-> dottype is pre-release software. Version 0.1 is intended for evaluation and
-> its command-line surface may change before 1.0.
+[Usage reference](USAGE.md) · [AI agent index](llms.txt) · [MIT license](LICENSE)
 
 ## Install
 
-After the first public release, install the cross-platform .NET tool from NuGet:
+Install from NuGet. Build integration requires the **.NET 10.0.400 SDK** or later:
 
 ```powershell
-dotnet tool install --global dottype
+dotnet tool install --global dottype --version 0.2.0
 ```
 
-Or install the self-contained Windows executable through WinGet:
+For build integration, reference `dottype.Build` as shown below. The CLI requires the .NET 10 runtime. To upgrade an existing CLI installation, run `dotnet tool update --global dottype --version 0.2.0`. See the [0.2.0 upgrade notes](CHANGELOG.md#020---2026-09-06) for changed options and sampling defaults.
 
-```powershell
-winget install DouglasCleghorn.dottype
+The examples below use `customer.json` containing `{"id":42,"name":"Ada"}`.
+
+## Single-file app
+
+```csharp
+#:package dottype.Build@0.2.0
+#:property dottype=customer.json --name Models.Customer
+
+var customer = new Models.Customer { id = 42, name = "Ada" };
+Console.WriteLine(customer.name);
 ```
 
-The NuGet tool requires the .NET 10 runtime. The WinGet package is self-contained and is published for Windows x64 and Arm64.
+Run `dotnet run --file app.cs`. Paths are relative to the app; use single quotes around paths with spaces. Try the [example app](examples/file-app/app.cs).
 
-## Usage
+## Project property
 
-```powershell
-# stdout (a file dropped onto the executable is passed as this argument)
-dottype customers.json
-
-# gzip or Brotli; format and class name come from the inner filename
-dottype customers.json.br
-dottype customers.csv.gz --output Customer.cs
-dottype customers.parquet.gz
-
-# output file
-dottype customers.csv --output Customer.cs
-
-# stdin
-Get-Content customers.json | dottype - --format json --name Customer
+```xml
+<ItemGroup>
+  <PackageReference Include="dottype.Build" Version="0.2.0" />
+</ItemGroup>
+<PropertyGroup>
+  <dottype>customer.json --name Models.Customer</dottype>
+</PropertyGroup>
 ```
 
-Options:
+Paths are relative to the project. Configure one example per project.
+
+## Visual Studio
+
+In **Visual Studio 2026**, install `dottype.Build`, select the example file in Solution Explorer, press **F4**, and set **Build Action** to **dottype**. In **dottype options**, enter:
 
 ```text
-dottype <input> [-o|--output <path>] [-n|--name <type>]
-                [--namespace <namespace>] [-f|--format json|csv|parquet]
-                [--compression auto|none|gzip|brotli]
+--name Models.Customer
 ```
 
-One outer `.gz` (gzip) or `.br` (Brotli) suffix is recognized, case-insensitively.
-For example, `customers.json.br` generates `customers`, not `customers_json`.
-`--compression` overrides detection; `gz` and `br` are accepted aliases. The default
-`auto` uses the filename and assumes uncompressed stdin. For compressed stdin,
-specify both options, for example in Bash or `cmd.exe`:
+Use either the Build Action or the project property. IntelliSense is available after restore, before the first run. Save and **Build** to refresh. See [editor setup and troubleshooting](USAGE.md#intellisense-refresh-and-errors), including VS Code, or open the [Visual Studio example](examples/visual-studio/App.csproj).
 
-```text
-dottype - --format json --compression br < customers.json.br
-```
-
-Use a binary-safe pipe/redirection for compressed data; PowerShell `Get-Content`
-text output is unsuitable. Compression does not change format inference, field
-names, nullability, or output encoding. ZIP, tar, nested compression wrappers,
-and other codecs are not supported. Parquet's internal column compression is
-handled independently by the Parquet reader.
-
-JSON objects and arrays of objects are supported, including nested objects and arrays. CSV uses the first record as its header and conservatively infers booleans and numeric types; other values remain strings. Parquet types and nullability come directly from its embedded schema.
-
-The generated code targets C# 10+ and uses framework attributes, with no dependency
-on dottype. `JsonPropertyName` supports System.Text.Json; `DataMember(Name=...)`
-also records the original name for mapping tools. Other serializers, CSV mappers,
-and Parquet writers may require their own configuration. Duplicate CSV headers
-are rejected because they cannot be mapped unambiguously.
-
-Inference currently reads complete JSON/CSV input into memory. Compressed or
-piped Parquet is also buffered because Parquet requires seeking. Memory usage
-therefore follows decompressed size. Run large files with sufficient memory.
-When dropping a file from Explorer, stdout may disappear as the console closes;
-use a terminal and `--output` to save the generated source.
-
-Exit codes: `0` success, `1` invalid data or I/O failure, `2` invalid usage.
-Output files are replaced atomically; existing symlink/hard-link aliases are
-replaced rather than writing through to their targets.
-
-## Build and install
-
-The project currently targets .NET 10.
+## Command line
 
 ```powershell
-dotnet restore dottype.slnx --locked-mode
-dotnet test dottype.slnx -c Release --no-restore
-dotnet pack src/dottype/dottype.csproj -c Release --no-restore -p:RuntimeIdentifiers= -o artifacts/package
-./eng/verify-package.ps1
-
-dotnet tool install --global `
-  --add-source artifacts/package `
-  dottype --version 0.1.0
+dottype customer.json --name Models.Customer --output Customer.cs
+dottype customers.parquet --name Models.Customer --output Customer.cs
 ```
 
-To build the self-contained WinGet executables and manifests:
+Omit `--output` to print source. Run `dottype --help` for options.
 
-```powershell
-./eng/publish-portables.ps1
-./eng/new-winget-manifests.ps1 `
-  -Version 0.1.0 `
-  -X64Installer artifacts/portable/release/dottype-win-x64.exe `
-  -Arm64Installer artifacts/portable/release/dottype-win-arm64.exe
-./eng/verify-winget-manifests.ps1
-```
+Parquet files use internal compression and keep the `.parquet` extension; no compression option is needed.
 
-See [RELEASING.md](RELEASING.md) for the protected NuGet trusted-publishing and WinGet submission process.
-
-This repository currently ships a CLI tool package, not a referenceable library
-API. A separately versioned core library can be added if programmatic generation
-is needed.
-
-## License
-
-dottype is licensed under the [MIT License](LICENSE).
+All entry points infer format and compression from the filename and sample the first **1,000 JSON/CSV records**. Use `--sample all` to include later fields and type changes. Generated code targets C# 10+ and has no runtime dependency on dottype. See [USAGE.md](USAGE.md) for the full argument and inference rules.

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../dottype/*.cs" Exclude="../dottype/Program.cs;../dottype/App.cs" Link="Inference/%(Filename)%(Extension)" />
+    <Compile Include="../dottype.Build/BuildOptions.cs;../dottype.Build/GenerationCache.cs" Link="Build/%(Filename)%(Extension)" />
+    <Reference Include="Microsoft.CodeAnalysis" HintPath="$(MSBuildBinPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll" Private="false" />
+    <PackageReference Include="Parquet.Net" PrivateAssets="all" />
+    <PackageReference Include="System.CommandLine" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

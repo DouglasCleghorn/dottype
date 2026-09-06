@@ -1,0 +1,61 @@
+<Project>
+  <UsingTask TaskName="dottype.Build.GenerateExampleType"
+             AssemblyFile="$(MSBuildThisFileDirectory)../tasks/net10.0/dottype.Build.dll"
+             Runtime="NET" />
+  <PropertyGroup>
+    <_dottypeAnalyzerDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/'))</_dottypeAnalyzerDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)dottype.xaml">
+      <Context>File;BrowseObject</Context>
+    </PropertyPageSchema>
+    <!-- Evaluation-time registration lets Visual Studio notice changed examples. -->
+    <UpToDateCheckInput Include="@(dottype)" />
+    <CompilerVisibleProperty Include="dottype" />
+    <CompilerVisibleProperty Include="dottypeProjectDirectory" />
+    <CompilerVisibleProperty Include="dottypeProjectFile" />
+    <CompilerVisibleProperty Include="dottypeCacheDirectory" />
+    <CompilerVisibleProperty Include="dottypeDesignTime" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="dottypeExample" />
+  </ItemGroup>
+  <Target Name="dottypeRemoveEditorGenerator" BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile;CompileDesignTime"
+          Condition="'$(BuildingInsideVisualStudio)' == 'true' or '$(MSBuildRuntimeType)' == 'Full'">
+    <ItemGroup>
+      <Analyzer Remove="$(_dottypeAnalyzerDirectory)*.dll" />
+    </ItemGroup>
+  </Target>
+  <Target Name="dottypeGenerate" BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile;CompileDesignTime"
+          Condition="'$(dottype)' != '' or '@(dottype)' != ''">
+    <Error Code="dottype001" Condition="'@(dottype->Count())' &gt; '1'"
+           Text="Choose one example file with Build Action dottype per project." />
+    <Error Code="dottype001" Condition="'@(dottype)' != '' and '$(dottype)' != ''"
+           Text="Use either a dottype property or a file with Build Action dottype, not both." />
+    <PropertyGroup>
+      <dottype Condition="'@(dottype)' != ''">@(dottype->'&quot;%(FullPath)&quot; %(Options)')</dottype>
+      <dottypeProjectDirectory>$(MSBuildProjectDirectory)</dottypeProjectDirectory>
+      <dottypeProjectFile>$(MSBuildProjectFullPath)</dottypeProjectFile>
+      <dottypeCacheDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'dottype'))</dottypeCacheDirectory>
+      <dottypeDesignTime>false</dottypeDesignTime>
+      <!-- Visual Studio receives generated Compile items during its design-time
+           build. Its analyzer host need not load our .NET 10 editor generator. -->
+      <dottypeDesignTime Condition="'$(DesignTimeBuild)' == 'true' and '$(BuildingInsideVisualStudio)' != 'true' and '$(MSBuildRuntimeType)' != 'Full'">true</dottypeDesignTime>
+    </PropertyGroup>
+    <GenerateExampleType Settings="$(dottype)"
+                         ProjectDirectory="$(MSBuildProjectDirectory)"
+                         ProjectFile="$(MSBuildProjectFullPath)"
+                         CacheDirectory="$(dottypeCacheDirectory)"
+                         DesignTimeBuild="$(dottypeDesignTime)">
+      <Output TaskParameter="GeneratedFile" ItemName="_dottypeGenerated" />
+      <Output TaskParameter="ExampleFile" ItemName="_dottypeExample" />
+      <Output TaskParameter="CacheFile" ItemName="FileWrites" />
+    </GenerateExampleType>
+    <ItemGroup>
+      <Compile Remove="@(_dottypeGenerated)" />
+      <Compile Include="@(_dottypeGenerated)" />
+      <FileWrites Include="@(_dottypeGenerated)" />
+      <UpToDateCheckInput Include="@(_dottypeExample)" />
+      <Watch Include="@(_dottypeExample)" />
+      <AdditionalFiles Include="@(_dottypeExample)" dottypeExample="true" Condition="'$(dottypeDesignTime)' == 'true'" />
+    </ItemGroup>
+  </Target>
+</Project>

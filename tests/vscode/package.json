@@ -1,0 +1,8 @@
+{
+  "name": "dottype-editor-tests",
+  "displayName": "dottype editor tests",
+  "publisher": "dottype-local",
+  "version": "0.0.0",
+  "engines": { "vscode": "^1.100.0" },
+  "extensionDependencies": ["ms-dotnettools.csharp", "ms-dotnettools.csdevkit"]
+}

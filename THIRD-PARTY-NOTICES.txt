@@ -1,5 +1,10 @@
 dottype includes software from the following projects:
 
+System.CommandLine 2.0.11
+Copyright (c) .NET Foundation and contributors. All rights reserved.
+License: MIT
+https://github.com/dotnet/command-line-api
+
 Parquet.Net 6.1.0
 Copyright (c) 2017 Ivan Gavryliuk
 License: MIT

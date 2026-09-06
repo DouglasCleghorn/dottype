@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>dottype.Build</RootNamespace>
+    <PackageId>dottype.Build</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>Doug Cleghorn</Authors>
+    <Copyright>Copyright © 2026 Doug Cleghorn</Copyright>
+    <Title>dottype build integration</Title>
+    <Description>Generate C# types from example JSON, CSV, or Parquet data during builds, with IntelliSense in Visual Studio and VS Code. Configure an example file through a project property, a file-based app directive, or the dottype Build Action. Generated code has no runtime dependency on dottype. Requires the .NET 10.0.400 SDK or later.</Description>
+    <PackageTags>csharp;poco;code-generation;type-inference;json;csv;parquet;source-generator;msbuild;intellisense;visual-studio;vscode</PackageTags>
+    <PackageProjectUrl>https://github.com/DouglasCleghorn/dottype</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/DouglasCleghorn/dottype</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>Release history and upgrade notes: https://github.com/DouglasCleghorn/dottype/blob/HEAD/CHANGELOG.md</PackageReleaseNotes>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- These assemblies execute inside MSBuild; they are intentionally not app references. -->
+    <NoWarn>$(NoWarn);NU5100</NoWarn>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackdottypeTask</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../dottype.Generator/dottype.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <Compile Include="../dottype/*.cs" Exclude="../dottype/Program.cs;../dottype/App.cs" Link="Inference/%(Filename)%(Extension)" />
+    <Reference Include="Microsoft.Build.Framework" HintPath="$(MSBuildBinPath)/Microsoft.Build.Framework.dll" Private="false" />
+    <Reference Include="Microsoft.Build.Utilities.Core" HintPath="$(MSBuildBinPath)/Microsoft.Build.Utilities.Core.dll" Private="false" />
+    <PackageReference Include="Parquet.Net" PrivateAssets="all" />
+    <PackageReference Include="System.CommandLine" PrivateAssets="all" />
+    <InternalsVisibleTo Include="dottype.Build.tests" />
+    <None Include="build/dottype.Build.props" Pack="true" PackagePath="build/" />
+    <None Include="build/dottype.Build.targets" Pack="true" PackagePath="build/" />
+    <None Include="build/dottype.xaml" Pack="true" PackagePath="build/" />
+    <None Include="../../docs/nuget/dottype.Build.md" Pack="true" PackagePath="/README.md" />
+    <None Include="../../assets/icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../USAGE.md" Pack="true" PackagePath="/" />
+    <None Include="../../llms.txt" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <Target Name="PackdottypeTask">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetDir)*.dll;$(TargetDir)*.deps.json" PackagePath="tasks/net10.0/" />
+      <TfmSpecificPackageFile Include="$(MSBuildProjectDirectory)/../dottype.Generator/bin/$(Configuration)/net10.0/*.dll" PackagePath="analyzers/dotnet/cs/" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -83,11 +83,16 @@ internal static class ParquetSchemaReader
         private static TypeDescription DescribeData(DataField field)
         {
             Type type = Nullable.GetUnderlyingType(field.ClrType) ?? field.ClrType;
+            // Classify the type we emit, rather than Parquet.Net's storage type.
+            if (type == typeof(ReadOnlyMemory<char>) || type == typeof(Memory<char>)) type = typeof(string);
+            if (type == typeof(ReadOnlyMemory<byte>) || type == typeof(Memory<byte>)) type = typeof(byte[]);
+            if (type.Assembly == typeof(ParquetReader).Assembly)
+                throw new InvalidDataException($"Unsupported Parquet type '{type.FullName}' for field '{field.Name}': no dependency-free C# representation is available.");
             string typeName = GetTypeName(type);
             bool isValueType = type.IsValueType;
             if (field.IsArray)
             {
-                string itemNullability = field.IsNullable && isValueType ? "?" : "";
+                string itemNullability = field.IsNullable ? "?" : "";
                 return new TypeDescription($"{typeName}{itemNullability}[]", false);
             }
             return new TypeDescription(typeName, isValueType);
@@ -133,9 +138,9 @@ internal static class ParquetSchemaReader
             if (type == typeof(float)) return "float";
             if (type == typeof(double)) return "double";
             if (type == typeof(decimal)) return "decimal";
-            if (type == typeof(string) || type == typeof(ReadOnlyMemory<char>) || type == typeof(Memory<char>)) return "string";
+            if (type == typeof(string)) return "string";
             if (type == typeof(object)) return "object";
-            if (type == typeof(byte[]) || type == typeof(ReadOnlyMemory<byte>) || type == typeof(Memory<byte>)) return "byte[]";
+            if (type == typeof(byte[])) return "byte[]";
             if (type.IsArray) return GetTypeName(type.GetElementType()!) + "[]";
             if (type.IsGenericType)
             {

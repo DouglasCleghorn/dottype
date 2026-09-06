@@ -1,0 +1,33 @@
+<Rule Name="dottype" DisplayName="dottype" PageTemplate="generic"
+      xmlns="http://schemas.microsoft.com/build/2009/properties">
+  <Rule.DataSource>
+    <DataSource Persistence="ProjectFile" ItemType="dottype" HasConfigurationCondition="false" />
+  </Rule.DataSource>
+  <Rule.Categories>
+    <Category Name="dottype" DisplayName="dottype" />
+    <Category Name="Advanced" DisplayName="Advanced" />
+    <Category Name="Misc" DisplayName="Misc" />
+  </Rule.Categories>
+  <DynamicEnumProperty Name="{}{ItemType}" DisplayName="Build Action"
+                       Category="Advanced" EnumProvider="ItemTypes" />
+  <StringProperty Name="Options" DisplayName="dottype options" Category="dottype"
+                  Description="Example: --name Models.Customer. Options: --name (-n), --format (-f), --compression, --sample N|all (default: 1000; alias: --sample-records), --force. Format, compression, and all values must be lowercase. Leave empty for defaults. See USAGE.md for values and aliases." />
+  <StringProperty Name="Identity" Visible="false" ReadOnly="true">
+    <StringProperty.DataSource>
+      <DataSource Persistence="Intrinsic" ItemType="dottype" PersistedName="Identity" />
+    </StringProperty.DataSource>
+  </StringProperty>
+  <StringProperty Name="FullPath" DisplayName="Full Path" ReadOnly="true" Category="Misc">
+    <StringProperty.DataSource>
+      <DataSource Persistence="Intrinsic" ItemType="dottype" PersistedName="FullPath" />
+    </StringProperty.DataSource>
+  </StringProperty>
+  <StringProperty Name="FileNameAndExtension" DisplayName="File Name" ReadOnly="true" Category="Misc">
+    <StringProperty.DataSource>
+      <DataSource Persistence="Intrinsic" ItemType="dottype" PersistedName="FileNameAndExtension" />
+    </StringProperty.DataSource>
+  </StringProperty>
+  <BoolProperty Name="Visible" Visible="false" Default="true" />
+  <StringProperty Name="DependentUpon" Visible="false" />
+  <StringProperty Name="Link" Visible="false" />
+</Rule>

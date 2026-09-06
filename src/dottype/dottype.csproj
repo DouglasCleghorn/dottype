@@ -9,16 +9,17 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dottype</ToolCommandName>
     <PackageId>dottype</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Doug Cleghorn</Authors>
     <Copyright>Copyright © 2026 Doug Cleghorn</Copyright>
     <Title>dottype</Title>
-    <Description>Generate minimal C# POCOs from JSON, CSV, and Parquet files.</Description>
-    <PackageTags>csharp;poco;code-generation;json;csv;parquet;cli;dotnet-tool</PackageTags>
+    <Description>Generate C# types from example JSON, CSV, or Parquet data with the dottype command-line tool. Infer nested types and nullability, preserve source field names, and read gzip or Brotli input. Save generated source or pipe it to stdout; generated code has no runtime dependency on dottype. Requires .NET 10.</Description>
+    <PackageTags>csharp;poco;code-generation;type-inference;json;csv;parquet;gzip;brotli;cli;dotnet-tool</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Initial preview release. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>Release history and upgrade notes: https://github.com/DouglasCleghorn/dottype/blob/HEAD/CHANGELOG.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/DouglasCleghorn/dottype</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/DouglasCleghorn/dottype</RepositoryUrl>
@@ -35,11 +36,15 @@
     <PackageReference Include="Microsoft.NET.ILLink.Tasks" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
     <PackageReference Include="Parquet.Net" />
+    <PackageReference Include="System.CommandLine" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="dottype.tests" />
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../docs/nuget/dottype.md" Pack="true" PackagePath="/README.md" />
+    <None Include="../../assets/icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../USAGE.md" Pack="true" PackagePath="/" />
+    <None Include="../../llms.txt" Pack="true" PackagePath="/" />
     <None Include="../../CHANGELOG.md" Pack="true" PackagePath="/" />
     <None Include="../../RELEASING.md" Pack="true" PackagePath="/" />
     <None Include="../../LICENSE" Pack="true" PackagePath="/" />

@@ -1,0 +1,14 @@
+# dottype
+
+> Generate C# types from example JSON, CSV, or Parquet data using the dottype CLI or the dottype.Build NuGet package.
+
+Start with the usage reference. It covers the shared argument contract and the differences between the CLI, single-file apps, project properties, and Visual Studio. Install dottype and dottype.Build version 0.2.0 from NuGet. There is no public runtime inference API.
+
+## Documentation
+
+- [Usage reference](USAGE.md): Installation, all arguments and defaults, CLI tab completion setup, equivalent examples, sampling, IntelliSense, and troubleshooting.
+- [Quick start](README.md): Installation and minimal examples for each entry point.
+
+## Optional
+
+- [Source repository](https://github.com/DouglasCleghorn/dottype): Source, examples, changelog, and repository instructions for contributors.

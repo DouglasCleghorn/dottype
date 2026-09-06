@@ -3,7 +3,7 @@ param(
     [string] $PackageDirectory = "artifacts/package",
 
     [Parameter(Mandatory = $false)]
-    [string] $ExpectedVersion = "0.1.0"
+    [string] $ExpectedVersion = "0.2.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,9 +11,10 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $resolvedDirectory = (Resolve-Path -LiteralPath $PackageDirectory).Path
-$packages = @(Get-ChildItem -LiteralPath $resolvedDirectory -Filter "dottype.*.nupkg" -File |
-    Where-Object { $_.Name -notlike "*.snupkg" })
-$symbols = @(Get-ChildItem -LiteralPath $resolvedDirectory -Filter "dottype.*.snupkg" -File)
+$packages = @(Get-ChildItem -LiteralPath $resolvedDirectory -File |
+    Where-Object { $_.Name -ceq "dottype.$ExpectedVersion.nupkg" })
+$symbols = @(Get-ChildItem -LiteralPath $resolvedDirectory -File |
+    Where-Object { $_.Name -ceq "dottype.$ExpectedVersion.snupkg" })
 
 if ($packages.Count -ne 1) {
     throw "Expected exactly one dottype nupkg in '$resolvedDirectory'; found $($packages.Count)."
@@ -22,6 +23,8 @@ if ($packages.Count -ne 1) {
 if ($symbols.Count -ne 1) {
     throw "Expected exactly one dottype snupkg in '$resolvedDirectory'; found $($symbols.Count)."
 }
+
+& "$PSScriptRoot/verify-package-listing.ps1" -PackagePath $packages[0].FullName
 
 $package = [System.IO.Compression.ZipFile]::OpenRead($packages[0].FullName)
 try {
@@ -33,7 +36,10 @@ try {
         "tools/net10.0/any/dottype.deps.json",
         "tools/net10.0/any/dottype.runtimeconfig.json",
         "tools/net10.0/any/Parquet.dll",
+        "tools/net10.0/any/System.CommandLine.dll",
         "README.md",
+        "USAGE.md",
+        "llms.txt",
         "CHANGELOG.md",
         "RELEASING.md",
         "LICENSE",

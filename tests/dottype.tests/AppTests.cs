@@ -78,6 +78,20 @@ public sealed class AppTests : IDisposable
     }
 
     [Theory]
+    [InlineData("Customer", null)]
+    [InlineData("Acme.Models.Customer", "Acme.Models")]
+    public async Task Name_sets_type_and_optional_namespace(string name, string? expectedNamespace)
+    {
+        await using var input = new MemoryStream("{\"id\":1}"u8.ToArray());
+        var result = await Run(["-", "--format=json", "--name=" + name, "--compression=auto", "--sample-records=all"], input);
+        Assert.Equal(0, result.Code);
+        Assert.Empty(result.Error);
+        Assert.Contains("public partial class Customer", result.Output);
+        if (expectedNamespace is null) Assert.DoesNotContain("namespace ", result.Output);
+        else Assert.Contains($"namespace {expectedNamespace};", result.Output);
+    }
+
+    [Theory]
     [InlineData(".gz")]
     [InlineData(".br")]
     public async Task Invalid_compression_fails_without_writing_output(string suffix)
@@ -156,6 +170,69 @@ public sealed class AppTests : IDisposable
         var result = await Run(["-", "--format", "json", option, value]);
         Assert.Equal(2, result.Code);
         Assert.Empty(result.Output);
+    }
+
+    [Fact]
+    public async Task Cli_sampling_matches_build_defaults_and_supports_full_inference()
+    {
+        string path = Path.Combine(_directory, "sample.json");
+        await File.WriteAllTextAsync(path, "[" + string.Join(",", Enumerable.Repeat("{\"id\":1}", 1000)) + ",{\"id\":\"later\",\"extra\":true}]");
+        var sampled = await Run([path]);
+        Assert.Equal(0, sampled.Code);
+        Assert.Contains("long id", sampled.Output);
+        Assert.DoesNotContain("extra", sampled.Output);
+        var all = await Run([path, "--sample-records", "all"]);
+        Assert.Equal(0, all.Code);
+        Assert.Contains("extra", all.Output);
+        Assert.DoesNotContain("long id", all.Output);
+    }
+
+    [Theory]
+    [InlineData("json", "[{\"id\":1},{\"id\":\"later\"}]")]
+    [InlineData("csv", "id\n1\nlater\n")]
+    public async Task Explicit_sampling_applies_to_stdin(string format, string payload)
+    {
+        await using var input = new MemoryStream(Encoding.UTF8.GetBytes(payload));
+        var result = await Run(["-", "--format", format, "--sample", "1"], input);
+        Assert.Equal(0, result.Code);
+        Assert.Contains("long id", result.Output);
+    }
+
+    [Fact]
+    public async Task Help_does_not_read_input_or_write_generated_output()
+    {
+        string outputPath = Path.Combine(_directory, "HelpMustNotWrite.cs");
+        var result = await Run([Path.Combine(_directory, "missing.json"), "--output", outputPath, "--help"]);
+        Assert.Equal(0, result.Code);
+        Assert.Empty(result.Error);
+        Assert.Contains("Usage:", result.Output);
+        Assert.False(File.Exists(outputPath));
+    }
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    public async Task Help_without_input_describes_the_current_argument_contract(string flag)
+    {
+        var result = await Run([flag]);
+        Assert.Equal(0, result.Code);
+        Assert.Empty(result.Error);
+        foreach (string option in new[] { "--output", "-o", "--name", "-n", "--format", "-f", "--compression", "--sample", "--sample-records", "--help", "-h" })
+            Assert.Contains(option, result.Output);
+        Assert.Contains("default: 1000", result.Output);
+        Assert.Contains("parquet/parq", result.Output);
+        Assert.Contains("gzip/gz", result.Output);
+        Assert.Contains("brotli/br", result.Output);
+        Assert.Contains("all for full input", result.Output);
+        Assert.Contains("lowercase", result.Output);
+        Assert.Contains("Tab completion:", result.Output);
+        Assert.DoesNotContain("<-|", result.Output);
+        Assert.Contains("Build only: --force", result.Output);
+        Assert.Contains("Examples:", result.Output);
+        Assert.Contains("Exit codes:", result.Output);
+        Assert.Contains("USAGE.md and llms.txt", result.Output);
+        Assert.Contains("Models.Customer", result.Output);
+        Assert.DoesNotContain("--namespace", result.Output);
     }
 
     [Fact]

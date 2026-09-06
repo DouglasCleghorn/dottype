@@ -1,4 +1,7 @@
 <Solution>
   <Project Path="src/dottype/dottype.csproj" />
+  <Project Path="src/dottype.Build/dottype.Build.csproj" />
+  <Project Path="src/dottype.Generator/dottype.Generator.csproj" />
   <Project Path="tests/dottype.tests/dottype.tests.csproj" />
+  <Project Path="tests/dottype.Build.tests/dottype.Build.tests.csproj" />
 </Solution>

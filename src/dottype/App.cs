@@ -11,6 +11,9 @@ internal static class App
     {
         try
         {
+            if (CliOptions.Complete(args, output) is int completionExitCode)
+                return completionExitCode;
+
             CliOptions options = CliOptions.Parse(args);
             if (options.ShowHelp)
             {
@@ -30,8 +33,8 @@ internal static class App
             {
                 schema = format switch
                 {
-                    InputFormat.Json => await JsonSchemaReader.ReadAsync(input, options.TypeName ?? defaultName, cancellationToken),
-                    InputFormat.Csv => await CsvSchemaReader.ReadAsync(input, options.TypeName ?? defaultName, cancellationToken),
+                    InputFormat.Json => await JsonSchemaReader.ReadAsync(input, options.TypeName ?? defaultName, options.SampleRecords, cancellationToken),
+                    InputFormat.Csv => await CsvSchemaReader.ReadAsync(input, options.TypeName ?? defaultName, options.SampleRecords, cancellationToken),
                     InputFormat.Parquet => await ParquetSchemaReader.ReadAsync(input, options.TypeName ?? defaultName, cancellationToken),
                     _ => throw new System.Diagnostics.UnreachableException()
                 };

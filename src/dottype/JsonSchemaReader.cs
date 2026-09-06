@@ -7,10 +7,17 @@ internal static class JsonSchemaReader
     public static async Task<PocoSchema> ReadAsync(
         Stream input,
         string requestedName,
+        int? sampleRecords = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            if (sampleRecords is int limit)
+            {
+                ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+                await using MemoryStream sample = await InferenceSample.ReadJsonAsync(input, limit, cancellationToken);
+                return await ReadAsync(sample, requestedName, cancellationToken: cancellationToken);
+            }
             using JsonDocument document = await JsonDocument.ParseAsync(input, cancellationToken: cancellationToken);
             InferredType root = document.RootElement.ValueKind switch
             {

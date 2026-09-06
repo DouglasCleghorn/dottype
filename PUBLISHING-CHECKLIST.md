@@ -1,7 +1,7 @@
 # Initial public release checklist
 
 Use this checklist when opening the repository and publishing a new package.
-Repository publication and NuGet/WinGet publication are separate operations.
+Repository publication and NuGet publication are separate operations.
 
 ## Repository contents and history
 
@@ -35,7 +35,7 @@ Repository publication and NuGet/WinGet publication are separate operations.
   credentials. Verify neutral PDB paths and commit-based Source Link.
 - Install the package from a local-only feed and test that installed command.
   Build Windows x64/ARM64 portable assets and execute them on their target
-  architectures. Verify installer hashes and official WinGet manifests.
+  architectures. Verify executable checksums.
 - Confirm the package ID/ownership, command name, supported runtime, license,
   version, README links, and changelog are accurate. A `PackAsTool` package is
   a CLI distribution, not a public library API.
@@ -56,9 +56,8 @@ Repository publication and NuGet/WinGet publication are separate operations.
   filename `release.yml`, and environment `release`.
 - Finalize the release date, ensure project/tag/package versions agree, and
   run the manual release workflow with publishing disabled first.
-- Publish reviewed artifacts to NuGet and GitHub. Submit WinGet only after its
-  exact versioned assets exist and `winget validate` plus install/uninstall tests
-  pass. Do not replace published assets with rebuilt files under the same version.
+- Publish reviewed artifacts to NuGet and GitHub. Do not replace published assets
+  with rebuilt files under the same version.
 
 ## Official guidance
 
@@ -68,4 +67,3 @@ Repository publication and NuGet/WinGet publication are separate operations.
 - [NuGet: package authoring](https://learn.microsoft.com/en-us/nuget/create-packages/package-authoring-best-practices)
 - [NuGet: Source Link](https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/sourcelink)
 - [NuGet: trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing)
-- [WinGet: submission and validation](https://learn.microsoft.com/en-us/windows/package-manager/package/repository)

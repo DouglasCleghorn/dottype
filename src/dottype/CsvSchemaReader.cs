@@ -8,13 +8,22 @@ internal static class CsvSchemaReader
     public static async Task<PocoSchema> ReadAsync(
         Stream input,
         string requestedName,
+        int? sampleRecords = null,
         CancellationToken cancellationToken = default)
     {
-        using var reader = new StreamReader(input, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         string content;
         try
         {
-            content = await reader.ReadToEndAsync(cancellationToken);
+            if (sampleRecords is int limit)
+            {
+                ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+                content = InferenceSample.ReadCsv(input, limit, cancellationToken);
+            }
+            else
+            {
+                using var reader = new StreamReader(input, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+                content = await reader.ReadToEndAsync(cancellationToken);
+            }
         }
         catch (DecoderFallbackException exception)
         {

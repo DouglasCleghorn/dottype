@@ -1,0 +1,9 @@
+<Project>
+  <ItemGroup>
+    <AvailableItemName Include="dottype" />
+  </ItemGroup>
+  <PropertyGroup>
+    <!-- The CLI fast path otherwise skips our external-file cache check. -->
+    <FileBasedProgramCanSkipMSBuild>false</FileBasedProgramCanSkipMSBuild>
+  </PropertyGroup>
+</Project>
