@@ -1,14 +1,21 @@
 version: 2
-multi-ecosystem-groups:
-  all-dependencies:
-    schedule:
-      interval: weekly
 updates:
   - package-ecosystem: nuget
     directory: /
-    patterns: ["*"]
-    multi-ecosystem-group: all-dependencies
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      nuget-security:
+        applies-to: security-updates
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
-    patterns: ["*"]
-    multi-ecosystem-group: all-dependencies
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
