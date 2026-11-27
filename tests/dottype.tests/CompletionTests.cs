@@ -84,6 +84,18 @@ public sealed class CompletionTests : IDisposable
     }
 
     [Fact]
+    public async Task Completes_flags_values_and_input_paths_after_column_type_overrides()
+    {
+        const string options = "dottype --column-type 'Asset ID=string' --column-type=count=long --name Row ";
+        Assert.Contains("--column-type", await Complete(options));
+        Assert.Equal(["--csvhelper-map"], await Complete(options + "inventory.csv --csv"));
+        Assert.Equal(["json", "jsonl"], await Complete(options + "--format js"));
+        string path = Path.Combine(_directory, "inventory file.csv");
+        File.WriteAllText(path, "id\n1\n");
+        Assert.Contains(path, await Complete(options + "\"" + path[..^4] + "\""));
+    }
+
+    [Fact]
     public async Task Terminator_disables_option_suggestions()
         => Assert.DoesNotContain("--format", await Complete("dottype -- --"));
 

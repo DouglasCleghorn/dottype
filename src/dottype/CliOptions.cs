@@ -171,6 +171,9 @@ internal sealed record CliOptions(
             if (valueOption == definition.Format || valueOption == definition.Compression || valueOption == definition.SampleRecords)
                 completions = completions.Where(item => item.Label.StartsWith(context.WordToComplete, StringComparison.OrdinalIgnoreCase));
         }
+        else if (result.GetResult(definition.ColumnType) is not null)
+            // System.CommandLine otherwise keeps completing the repeatable option after its value.
+            completions = definition.Command.GetCompletions(result.GetCompletionContext());
         else
             completions = result.GetCompletions();
         foreach (CompletionItem completion in completions) output.WriteLine(completion.Label);
