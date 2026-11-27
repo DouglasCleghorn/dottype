@@ -27,9 +27,9 @@
       },
       "System.CommandLine": {
         "type": "Direct",
-        "requested": "[2.0.12, )",
-        "resolved": "2.0.12",
-        "contentHash": "FpW672e6qqrTd1EfKqsvUtFZaJWlTlszUR1o8tdakXhkzKbnEZVndtpfd4K3fUPCFcIs9UmcswMyYGJP1zp/rg=="
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "swNpSTl0iYJeBuvYYfaY+VxzZ5YC8wklwkqDCNOq2aTQqJzjauJfh/O3Zw93nwxspWrxvZTjT45f8VPR0ParEA=="
       },
       "xunit.v3": {
         "type": "Direct",
@@ -205,7 +205,7 @@
         "type": "Project",
         "dependencies": {
           "Parquet.Net": "[6.1.0, )",
-          "System.CommandLine": "[2.0.12, )"
+          "System.CommandLine": "[3.0.0, )"
         }
       }
     }
