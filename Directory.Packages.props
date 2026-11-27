@@ -8,7 +8,7 @@
     <PackageVersion Include="Microsoft.NET.ILLink.Tasks" Version="10.0.12" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
     <PackageVersion Include="Parquet.Net" Version="6.1.0" />
-    <PackageVersion Include="System.CommandLine" Version="2.0.12" />
+    <PackageVersion Include="System.CommandLine" Version="3.0.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
   </ItemGroup>
 </Project>
