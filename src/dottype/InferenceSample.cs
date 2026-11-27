@@ -75,6 +75,7 @@ internal static class InferenceSample
         using var reader = new StreamReader(input, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         var sample = new StringBuilder();
         bool quoted = false;
+        bool recordStarted = false;
         long completed = 0;
         while (reader.Read() is int value && value >= 0)
         {
@@ -84,9 +85,11 @@ internal static class InferenceSample
             if (character == '"') quoted = !quoted;
             if (!quoted && character is '\r' or '\n')
             {
-                if (++completed == (long)records + 1) break; // Header is not a data record.
+                if (recordStarted && ++completed == (long)records + 1) break; // Exclude blank lines and the header.
                 if (character == '\r' && reader.Peek() == '\n') sample.Append((char)reader.Read());
+                recordStarted = false;
             }
+            else recordStarted = true;
         }
         return sample.ToString();
     }

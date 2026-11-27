@@ -1,6 +1,6 @@
 param(
     [string] $PackageDirectory = "$PSScriptRoot/../artifacts/package",
-    [string] $ExpectedVersion = '0.2.0'
+    [string] $ExpectedVersion = '0.3.0'
 )
 $ErrorActionPreference = 'Stop'
 & "$PSScriptRoot/verify-package-listing.ps1" -PackagePath (Join-Path $PackageDirectory "dottype.Build.$ExpectedVersion.nupkg")
@@ -19,7 +19,7 @@ function Invoke-Dotnet([string[]] $Arguments, [switch] $ExpectFailure) {
 try {
     Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project />'
     Set-Content -LiteralPath (Join-Path $scratch 'Directory.Packages.props') -Value '<Project />'
-    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><config><add key='globalPackagesFolder' value='./packages' /></config></configuration>"
+    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping><config><add key='globalPackagesFolder' value='./packages' /></config></configuration>"
     $app = Join-Path $scratch 'app.cs'
     $example = Join-Path $scratch 'sample file.json'
     Set-Content -LiteralPath $example -Value '{"id":1}'
@@ -59,7 +59,20 @@ Console.WriteLine(string.Join(",", typeof(Models.Customer).GetProperties().Selec
     Invoke-Dotnet @('build', $app, '--no-restore', '-t:Compile', '-p:DesignTimeBuild=true', '-p:SkipCompilerExecution=false') -ExpectFailure | Out-Null
     Remove-Item -LiteralPath $example
     Invoke-Dotnet @('run', '--file', $app, '--no-restore') -ExpectFailure | Out-Null
-    Write-Output 'Verified packed build task: fresh design-time generation, quoted paths, execution, cache reuse/invalidation, stable output, and error handling.'
+    # Run the documented import against the package under test, including a
+    # subsequent export whose headers have moved.
+    $inventoryApp = Join-Path $scratch 'inventory.cs'
+    $inventoryCsv = Join-Path $scratch 'inventory.csv'
+    $inventorySource = Get-Content -Raw -LiteralPath "$PSScriptRoot/../examples/file-app/inventory.cs"
+    Set-Content -LiteralPath $inventoryApp -Value ($inventorySource -replace 'dottype\.Build@\S+', "dottype.Build@$ExpectedVersion")
+    Copy-Item -LiteralPath "$PSScriptRoot/../examples/file-app/inventory.csv" -Destination $inventoryCsv
+    Invoke-Dotnet @('restore', $inventoryApp, '--configfile', (Join-Path $scratch 'NuGet.Config')) | Out-Null
+    $runInventory = @('run', '--file', $inventoryApp, '--no-restore', '--')
+    if ((Invoke-Dotnet ($runInventory + $inventoryCsv)).Trim() -ne '6144 bytes') { throw 'CSV quick start did not sum the sample.' }
+    $nextCsv = Join-Path $scratch 'next.csv'
+    Set-Content -LiteralPath $nextCsv -Value "Asset ID,Size bytes,File path`n00501,512,/data/next.log"
+    if ((Invoke-Dotnet ($runInventory + $nextCsv)).Trim() -ne '512 bytes') { throw 'CSV import did not map reordered headers.' }
+    Write-Output 'Verified the packed build task, editor generation, cache refresh, and CSV import with reordered headers.'
 } finally {
     $resolved = [IO.Path]::GetFullPath($scratch)
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)

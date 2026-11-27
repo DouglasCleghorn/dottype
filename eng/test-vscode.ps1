@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)][string] $CodeExecutable,
     [Parameter(Mandatory = $true)][string] $ExtensionsDirectory,
     [string] $PackageDirectory = "$PSScriptRoot/../artifacts/package",
-    [ValidateSet('json', 'csv', 'parquet')][string] $Format = 'json',
+    [ValidateSet('json', 'jsonl', 'csv', 'parquet')][string] $Format = 'json',
     [switch] $Wait
 )
 $ErrorActionPreference = 'Stop'
@@ -21,12 +21,15 @@ if ($Format -eq 'parquet') {
 } elseif ($Format -eq 'csv') {
     Set-Content -LiteralPath (Join-Path $appDirectory 'sample.csv') -Value "id`n1"
     Set-Content -LiteralPath (Join-Path $appDirectory 'changed.csv') -Value "displayName`nAlice"
+} elseif ($Format -eq 'jsonl') {
+    Set-Content -LiteralPath (Join-Path $appDirectory 'sample.jsonl') -Value @('{"id":1}', '{"id":2}')
+    Set-Content -LiteralPath (Join-Path $appDirectory 'changed.jsonl') -Value @('{"displayName":"Ada"}', '{"displayName":"Bob"}')
 } else {
     Set-Content -LiteralPath (Join-Path $appDirectory 'sample.json') -Value '{"id":1}'
     Set-Content -LiteralPath (Join-Path $appDirectory 'changed.json') -Value '{"displayName":"Alice"}'
 }
 $appSource = @'
-#:package dottype.Build@0.2.0
+#:package dottype.Build@0.3.0
 #:property dottype=./sample.FORMAT --name Customer
 
 var customer = new Customer();

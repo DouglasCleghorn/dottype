@@ -4,6 +4,16 @@ All notable changes to dottype are documented here.
 
 ## [Unreleased]
 
+- Generate an optional CsvHelper class map with `--csvhelper-map`. It binds the original CSV headers to their generated C# properties.
+- Pin individual CSV columns with repeatable `--column-type "header=type"`. Inference preserves padded identifiers and nonfinite numeric text as strings.
+- Add a runnable inventory import and a one-shot CLI quick start to the library and package documentation.
+- Read JSON Lines (`.jsonl` and `.ndjson`) from files and stdin, with gzip, Brotli, and record sampling. Errors identify the line in the sample.
+- Generate several models in one project using one `<dottype Include="…"/>` item per example. Each item has its own options, output, and cache. Duplicate root or map names report `dottype001`.
+- When moving from one example to several, qualify explicit child type references with their root, for example `Models.Customer.addressType`. Existing single-example projects and CLI commands keep their original names.
+- Preserve inferred array element types when some JSON records contain an empty array.
+- Skip blank CSV lines during sampling and import inference. Handle field names such as `ToString` in projects that treat warnings as errors.
+- Refresh build results when a symlinked example's target changes. Improve CLI path diagnostics and completion of flags and filesystem roots.
+
 ## [0.2.0] - 2026-09-06
 
 ### Upgrade from 0.1.0

@@ -45,6 +45,18 @@ public sealed class SchemaReaderTests
         Assert.Contains("public string zip", source);
     }
 
+    [Theory]
+    [InlineData(" 00123")]
+    [InlineData("123 ")]
+    [InlineData("Infinity")]
+    [InlineData("NaN")]
+    public async Task Csv_preserves_noncanonical_numbers_as_text(string value)
+    {
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes($"code\n{value}\n"));
+        PocoSchema schema = await CsvSchemaReader.ReadAsync(stream, "Row");
+        Assert.Equal("string", Assert.Single(schema.Classes[0].Properties).TypeName);
+    }
+
     [Fact]
     public async Task Parquet_uses_embedded_types_nullability_and_names()
     {

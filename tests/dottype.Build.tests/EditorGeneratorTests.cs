@@ -33,6 +33,19 @@ public sealed class EditorGeneratorTests : IDisposable
     }
 
     [Fact]
+    public void Editor_emits_the_csv_map_and_pinned_columns()
+    {
+        string file = Path.Combine(_directory, "sample.csv");
+        File.WriteAllText(file, "Invoice ID,Total\n42,12.50\n");
+        GeneratorDriver driver = Driver("sample.csv --name Models.Invoice --csvhelper-map --column-type 'Invoice ID=string'",
+            new DiskFile(file)).RunGenerators(CSharpCompilation.Create("App"));
+        string source = Source(driver);
+        Assert.Contains("string Invoice_ID", source);
+        Assert.Contains("class InvoiceMap : global::CsvHelper.Configuration.ClassMap<Invoice>", source);
+        Assert.Contains("Map(row => row.Invoice_ID).Name(\"Invoice ID\")", source);
+    }
+
+    [Fact]
     public void Editor_reports_invalid_input_and_removes_previous_generated_type()
     {
         string file = Path.Combine(_directory, "sample.json");
@@ -78,16 +91,43 @@ public sealed class EditorGeneratorTests : IDisposable
     }
 
     private CSharpGeneratorDriver Driver(string settings, AdditionalText? additional = null, bool designTime = true)
+        => Driver([new(null, settings)], additional is null ? [] : [additional], designTime);
+
+    private CSharpGeneratorDriver Driver(ExampleInput[] inputs, AdditionalText[] files, bool designTime = true)
         => CSharpGeneratorDriver.Create([new ExampleGenerator().AsSourceGenerator()],
-            additionalTexts: additional is null ? [] : [additional],
+            additionalTexts: files,
             optionsProvider: new OptionsProvider(new Dictionary<string, string>
             {
-                ["build_property.dottype"] = settings,
+                ["build_property.dottypeInputs"] = ExampleInputs.Encode(inputs),
                 ["build_property.dottypeProjectDirectory"] = _directory,
                 ["build_property.dottypeProjectFile"] = Path.Combine(_directory, "app.cs"),
                 ["build_property.dottypeCacheDirectory"] = Path.Combine(_directory, "obj"),
                 ["build_property.dottypeDesignTime"] = designTime ? "true" : "false"
             }));
+
+    [Fact]
+    public void Editor_keeps_other_models_when_one_file_has_an_error_and_recovers_on_save()
+    {
+        string good = Path.Combine(_directory, "one.json");
+        string bad = Path.Combine(_directory, "two.ndjson");
+        File.WriteAllText(good, "{\"name\":\"a\"}");
+        File.WriteAllText(bad, "{}\ninvalid");
+        var changing = new DiskFile(bad);
+        var compilation = CSharpCompilation.Create("App");
+        GeneratorDriver driver = Driver([new(good, "--name Good"), new(bad, "--name Events")], [new DiskFile(good), changing])
+            .RunGenerators(compilation);
+        var result = driver.GetRunResult();
+        Assert.Contains("class Good", Assert.Single(result.GeneratedTrees).ToString());
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("dottype001", diagnostic.Id);
+        Assert.Equal(bad, diagnostic.Location.GetLineSpan().Path);
+        Assert.Contains("line 2", diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture));
+        File.WriteAllText(bad, "{\"count\":2}\n");
+        result = driver.ReplaceAdditionalText(changing, new DiskFile(bad)).RunGenerators(compilation).GetRunResult();
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(2, result.GeneratedTrees.Length);
+        Assert.Contains(result.GeneratedTrees, tree => tree.ToString().Contains("long count", StringComparison.Ordinal));
+    }
 
     private static string Source(GeneratorDriver driver)
     {

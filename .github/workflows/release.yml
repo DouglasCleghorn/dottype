@@ -6,7 +6,7 @@ on:
       version:
         description: Version; the selected Git ref must be the matching v-prefixed tag.
         required: true
-        default: 0.2.0
+        default: 0.3.0
         type: string
       publish_to_nuget:
         description: Exchange an OIDC token and publish the CLI and build-integration packages to nuget.org.

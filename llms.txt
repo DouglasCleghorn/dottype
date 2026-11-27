@@ -1,13 +1,16 @@
 # dottype
 
-> Generate C# types from example JSON, CSV, or Parquet data using the dottype CLI or the dottype.Build NuGet package.
+> Generate C# types from JSON, JSON Lines, CSV, or Parquet using the dottype CLI or the dottype.Build NuGet package.
 
-Start with the usage reference. It covers the shared argument contract and the differences between the CLI, single-file apps, project properties, and Visual Studio. Install dottype and dottype.Build version 0.2.0 from NuGet. There is no public runtime inference API.
+Start with the usage reference for dottype and dottype.Build version 0.3.0. It covers the shared argument contract and the differences between the CLI, single-file apps, project properties, and Visual Studio. There is no public runtime inference API.
 
 ## Documentation
 
 - [Usage reference](USAGE.md): Installation, all arguments and defaults, CLI tab completion setup, equivalent examples, sampling, IntelliSense, and troubleshooting.
-- [Quick start](README.md): Installation and minimal examples for each entry point.
+- [Quick start](README.md): Read an inventory CSV, query typed rows with LINQ, and try the CLI with a one-shot command.
+- [CSV import](USAGE.md#read-a-csv-with-csvhelper): CsvHelper maps, exact header matching, and per-column type overrides.
+- [JSON Lines](USAGE.md#read-json-lines): Sample newline-delimited objects from a file, a compressed export, or stdin.
+- [Multiple models in one project](USAGE.md#multiple-models-in-one-project): Set options per example and use generated child types.
 
 ## Optional
 

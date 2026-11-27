@@ -4,6 +4,9 @@ internal sealed class NameAllocator
 {
     private readonly HashSet<string> _used = new(StringComparer.Ordinal);
 
+    // Nested type declarations and the root's properties share a C# member scope.
+    public void Reserve(IEnumerable<string> names) => _used.UnionWith(names.Select(Identifier.Unescaped));
+
     public static Dictionary<string, string> ForProperties(IEnumerable<string> sourceNames, string className)
     {
         string[] names = sourceNames.ToArray();

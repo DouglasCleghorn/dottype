@@ -9,8 +9,8 @@ public sealed class CompletionTests : IDisposable
     public CompletionTests() => Directory.CreateDirectory(_directory);
 
     [Theory]
-    [InlineData("--format", "csv,json,parq,parquet")]
-    [InlineData("-f", "csv,json,parq,parquet")]
+    [InlineData("--format", "csv,json,jsonl,ndjson,parq,parquet")]
+    [InlineData("-f", "csv,json,jsonl,ndjson,parq,parquet")]
     [InlineData("--compression", "auto,br,brotli,gz,gzip,none")]
     [InlineData("--sample", "1000,all")]
     [InlineData("--sample-records", "1000,all")]
@@ -18,12 +18,24 @@ public sealed class CompletionTests : IDisposable
         => Assert.Equal(expected.Split(','), await Complete($"dottype {option} "));
 
     [Theory]
-    [InlineData("--format=JS", "json")]
+    [InlineData("--format=JS", "json,jsonl")]
     [InlineData("-f pa", "parq,parquet")]
     [InlineData("--compression G", "gz,gzip")]
     [InlineData("--sample A", "all")]
     public async Task Filters_values_case_insensitively(string arguments, string expected)
         => Assert.Equal(expected.Split(','), await Complete("dottype " + arguments));
+
+    [Fact]
+    public async Task Option_at_the_cursor_completes_the_flag_until_a_space_is_entered()
+        => Assert.Equal(["--sample", "--sample-records"], await Complete("dottype --sample"));
+
+    [Fact]
+    public async Task Absolute_root_suggests_entries_from_that_directory()
+    {
+        string root = Path.GetPathRoot(_directory)!;
+        string directory = Path.GetRelativePath(root, _directory).Split(Path.DirectorySeparatorChar)[0];
+        Assert.Contains(Path.Combine(root, directory) + Path.DirectorySeparatorChar, await Complete($"dottype --output \"{root}\""));
+    }
 
     [Fact]
     public async Task Suggests_cli_flags_but_not_build_only_or_default_root_flags()
@@ -41,7 +53,7 @@ public sealed class CompletionTests : IDisposable
     {
         const string line = "dottype --format js --name Customer";
         int cursor = line.IndexOf(" --name", StringComparison.Ordinal);
-        Assert.Equal(["json"], await Complete(line, cursor));
+        Assert.Equal(["json", "jsonl"], await Complete(line, cursor));
     }
 
     [Theory]
@@ -89,7 +101,7 @@ public sealed class CompletionTests : IDisposable
 
     [Fact]
     public async Task Completes_after_a_quoted_executable_path()
-        => Assert.Equal(["json"], await Complete("\"C:/program files/dottype.exe\" --format j"));
+        => Assert.Equal(["json", "jsonl"], await Complete("\"C:/program files/dottype.exe\" --format j"));
 
     [Theory]
     [InlineData("dottype --format", 0)]
@@ -107,7 +119,7 @@ public sealed class CompletionTests : IDisposable
         using var error = new StringWriter(CultureInfo.InvariantCulture);
         int code = await App.RunAsync(["[suggest]", $"dottype - --output \"{path}\" --format j"], output, error, input);
         Assert.Equal(0, code);
-        Assert.Equal("json", output.ToString().Trim());
+        Assert.Equal(["json", "jsonl"], output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
         Assert.Empty(error.ToString());
         Assert.Equal(0, input.Position);
         Assert.Equal("keep", File.ReadAllText(path));

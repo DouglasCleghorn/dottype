@@ -1,14 +1,23 @@
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 
 namespace dottype;
 
+internal enum CsvType
+{
+    Unknown, Boolean, Integer, Decimal, Double, String
+}
+
 internal static class CsvSchemaReader
 {
+    private static readonly SearchValues<char> NumericCharacters = SearchValues.Create("0123456789+-.eE");
+
     public static async Task<PocoSchema> ReadAsync(
         Stream input,
         string requestedName,
         int? sampleRecords = null,
+        IReadOnlyDictionary<string, CsvType>? columnTypes = null,
         CancellationToken cancellationToken = default)
     {
         string content;
@@ -41,8 +50,17 @@ internal static class CsvSchemaReader
             throw new InvalidDataException("The CSV header is empty.");
         }
 
-        var types = Enumerable.Repeat(CsvType.Unknown, headers.Count).ToArray();
-        var nullable = new bool[headers.Count];
+        string className = Identifier.MakeValid(requestedName, "Root");
+        var propertyNames = NameAllocator.ForProperties(headers, className);
+        if (columnTypes is not null)
+        {
+            foreach (string header in columnTypes.Keys)
+                if (!propertyNames.ContainsKey(header))
+                    throw new InvalidDataException($"No CSV header exactly matches --column-type '{header}'.");
+        }
+        CsvType[] pinned = headers.Select(h => columnTypes?.GetValueOrDefault(h) ?? CsvType.Unknown).ToArray();
+        var types = (CsvType[])pinned.Clone();
+        var nullable = Enumerable.Repeat(rows.Count == 1, headers.Count).ToArray();
         for (int rowIndex = 1; rowIndex < rows.Count; rowIndex++)
         {
             IReadOnlyList<string> row = rows[rowIndex];
@@ -57,13 +75,14 @@ internal static class CsvSchemaReader
                     nullable[column] = true;
                     continue;
                 }
-                types[column] = Merge(types[column], Infer(row[column]));
+                if (pinned[column] == CsvType.Unknown)
+                    types[column] = Merge(types[column], Infer(row[column]));
+                else if (!CanReadAs(row[column], pinned[column]))
+                    throw new InvalidDataException($"CSV row {rowIndex + 1}, column '{headers[column]}' cannot be read as {Describe(pinned[column]).TypeName}.");
             }
         }
 
         var properties = new List<PocoProperty>(headers.Count);
-        string className = Identifier.MakeValid(requestedName, "Root");
-        var propertyNames = NameAllocator.ForProperties(headers, className);
         for (int index = 0; index < headers.Count; index++)
         {
             string sourceName = headers[index];
@@ -141,6 +160,7 @@ internal static class CsvSchemaReader
                 {
                     index++;
                 }
+                if (!recordStarted) continue;
                 row.Add(field.ToString());
                 field.Clear();
                 rows.Add(row);
@@ -181,12 +201,22 @@ internal static class CsvSchemaReader
         {
             return CsvType.Decimal;
         }
-        if (IsCanonicalNumber(value) && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+        if (IsCanonicalNumber(value) && CanReadAs(value, CsvType.Double))
         {
             return CsvType.Double;
         }
         return CsvType.String;
     }
+
+    private static bool CanReadAs(string value, CsvType type) => type switch
+    {
+        CsvType.String => true,
+        CsvType.Boolean => bool.TryParse(value, out _),
+        CsvType.Integer => long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
+        CsvType.Decimal => decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _),
+        CsvType.Double => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double number) && double.IsFinite(number),
+        _ => throw new InvalidOperationException("Expected a pinned CSV column type.")
+    };
 
     private static CsvType Merge(CsvType left, CsvType right)
     {
@@ -228,22 +258,13 @@ internal static class CsvSchemaReader
 
     private static bool IsCanonicalNumber(string value)
     {
+        if (value.AsSpan().ContainsAnyExcept(NumericCharacters)) return false;
         int start = value.Length > 0 && value[0] is '+' or '-' ? 1 : 0;
         int end = value.IndexOfAny('e', 'E');
         if (end < 0) end = value.Length;
         int dot = value.IndexOf('.');
         int integerEnd = dot >= 0 && dot < end ? dot : end;
         ReadOnlySpan<char> integer = value.AsSpan(start, integerEnd - start);
-        return integer.Length > 0 && (integer.Length == 1 || integer[0] != '0');
-    }
-
-    private enum CsvType
-    {
-        Unknown,
-        Boolean,
-        Integer,
-        Decimal,
-        Double,
-        String
+        return integer.Length > 0 && char.IsAsciiDigit(integer[0]) && (integer.Length == 1 || integer[0] != '0');
     }
 }

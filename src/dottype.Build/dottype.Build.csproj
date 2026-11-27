@@ -3,12 +3,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>dottype.Build</RootNamespace>
     <PackageId>dottype.Build</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Doug Cleghorn</Authors>
     <Copyright>Copyright © 2026 Doug Cleghorn</Copyright>
     <Title>dottype build integration</Title>
-    <Description>Generate C# types from example JSON, CSV, or Parquet data during builds, with IntelliSense in Visual Studio and VS Code. Configure an example file through a project property, a file-based app directive, or the dottype Build Action. Generated code has no runtime dependency on dottype. Requires the .NET 10.0.400 SDK or later.</Description>
-    <PackageTags>csharp;poco;code-generation;type-inference;json;csv;parquet;source-generator;msbuild;intellisense;visual-studio;vscode</PackageTags>
+    <Description>Generate C# types from JSON, JSON Lines, CSV, and Parquet. Use multiple examples per project with per-file settings and IntelliSense in Visual Studio and VS Code. Import CSV with optional CsvHelper maps and per-column types. Supports file-based apps. Requires the .NET 10.0.400 SDK or later.</Description>
+    <PackageTags>csharp;poco;code-generation;type-inference;json;jsonl;ndjson;csv;csvhelper;parquet;source-generator;msbuild;intellisense;visual-studio;vscode</PackageTags>
     <PackageProjectUrl>https://github.com/DouglasCleghorn/dottype</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/DouglasCleghorn/dottype</RepositoryUrl>

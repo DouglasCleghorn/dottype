@@ -1,5 +1,5 @@
+using System.Collections.Immutable;
 using System.Text;
-using System.Text.Json;
 using dottype.Build;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -12,12 +12,12 @@ namespace dottype.Generator;
 public sealed class ExampleGenerator : IIncrementalGenerator
 {
     private static readonly DiagnosticDescriptor InvalidExample = new("dottype001", "Cannot generate example type",
-        "dottype: {0} Check the dottype property and its example file.", "dottype", DiagnosticSeverity.Error, isEnabledByDefault: true);
+        "dottype: {0} Check the dottype property or file options and the example data.", "dottype", DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var options = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) => new Settings(
-            Get(provider, "dottype"), Get(provider, "dottypeProjectDirectory"),
+            Get(provider, "dottypeInputs"), Get(provider, "dottypeProjectDirectory"),
             Get(provider, "dottypeProjectFile"), Get(provider, "dottypeCacheDirectory"),
             Get(provider, "dottypeDesignTime") == "true"));
         // Observe the host snapshot so Roslyn tracks external file changes. Binary
@@ -25,27 +25,7 @@ public sealed class ExampleGenerator : IIncrementalGenerator
         var examples = context.AdditionalTextsProvider.Combine(context.AnalyzerConfigOptionsProvider)
             .Where(static pair => pair.Right.GetOptions(pair.Left).TryGetValue("build_metadata.AdditionalFiles.dottypeExample", out string? value) && value == "true")
             .Select(static (pair, cancellationToken) => Observe(pair.Left, cancellationToken)).Collect();
-        var source = examples.Combine(options).Select(static (pair, cancellationToken) =>
-        {
-            Settings settings = pair.Right;
-            if (!settings.DesignTime || string.IsNullOrWhiteSpace(settings.Value)) return new Result(null, null);
-            try
-            {
-                GenerationResult result = GenerationCache.GenerateAsync(settings.Value, settings.Directory, settings.Project,
-                    Path.Combine(settings.Cache, "editor"), cancellationToken).GetAwaiter().GetResult();
-                return new Result(result.Source, null);
-            }
-            catch (Exception exception) when (exception is CliException or IOException or UnauthorizedAccessException
-                or InvalidDataException or JsonException or ArgumentException or InvalidOperationException or OverflowException)
-            {
-                string file = settings.Project;
-                if (!File.Exists(file) && file.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
-                {
-                    file = File.Exists(file[..^7]) ? file[..^7] : Path.ChangeExtension(file, ".cs");
-                }
-                return new Result(null, exception.Message, file);
-            }
-        });
+        var source = examples.Combine(options).SelectMany(static (pair, cancellationToken) => Generate(pair.Right, cancellationToken));
         context.RegisterSourceOutput(source, static (output, result) =>
         {
             if (result.Error is not null)
@@ -54,8 +34,45 @@ public sealed class ExampleGenerator : IIncrementalGenerator
                     : Location.Create(result.File, default, new LinePositionSpan(default, default));
                 output.ReportDiagnostic(Diagnostic.Create(InvalidExample, location, result.Error));
             }
-            if (result.Source is not null) output.AddSource("dottype.Example.g.cs", SourceText.From(result.Source, Encoding.UTF8));
+            if (result.Source is not null) output.AddSource(result.Hint!, SourceText.From(result.Source, Encoding.UTF8));
         });
+    }
+
+    private static ImmutableArray<Result> Generate(Settings settings, CancellationToken cancellationToken)
+    {
+        if (!settings.DesignTime || string.IsNullOrEmpty(settings.Inputs)) return [];
+        string project = ExampleInputs.DiagnosticFile(settings.Project);
+        ResolvedInput[] inputs;
+        try
+        {
+            inputs = ExampleInputs.Resolve(ExampleInputs.Decode(settings.Inputs), settings.Directory);
+        }
+        catch (Exception exception) when (ExampleInputs.IsGenerationError(exception))
+        {
+            return [new(null, null, exception.Message, project)];
+        }
+        var results = ImmutableArray.CreateBuilder<Result>(inputs.Length);
+        foreach (ResolvedInput input in inputs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string file = input.ItemPath ?? project;
+            if (input.Error is not null)
+            {
+                results.Add(new(null, null, input.Error, file));
+                continue;
+            }
+            try
+            {
+                GenerationResult result = GenerationCache.GenerateAsync(input.Options!, settings.Directory, settings.Project,
+                    Path.Combine(settings.Cache, "editor"), cancellationToken).GetAwaiter().GetResult();
+                results.Add(new(Path.GetFileName(result.GeneratedFile), result.Source, null, null));
+            }
+            catch (Exception exception) when (ExampleInputs.IsGenerationError(exception))
+            {
+                results.Add(new(null, null, exception.Message, file));
+            }
+        }
+        return results.MoveToImmutable();
     }
 
     private static string Get(AnalyzerConfigOptionsProvider provider, string name)
@@ -70,6 +87,6 @@ public sealed class ExampleGenerator : IIncrementalGenerator
     }
 
     private sealed record ObservedExample(AdditionalText File, SourceText? Text);
-    private sealed record Settings(string Value, string Directory, string Project, string Cache, bool DesignTime);
-    private sealed record Result(string? Source, string? Error, string? File = null);
+    private sealed record Settings(string Inputs, string Directory, string Project, string Cache, bool DesignTime);
+    private sealed record Result(string? Hint, string? Source, string? Error, string? File);
 }

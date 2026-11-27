@@ -26,6 +26,7 @@ public sealed class GeneratedCodeTests
     [InlineData("record", "{\"record\":1,\"field\":2,\"required\":3}")]
     [InlineData("Root", "{\"x\":{},\"xType\":1,\"line\\u2028break\":1,\"a\\u200db\":1,\"ab\":2}")]
     [InlineData("Root", "{\"𐐀\":1,\"9lives\":2,\"\":3,\"quote\\\"\":4}")]
+    [InlineData("Row", "{\"ToString\":1,\"GetHashCode\":1,\"Equals\":1,\"GetType\":1,\"MemberwiseClone\":1,\"ReferenceEquals\":1,\"Finalize\":1}")]
     public async Task Generated_json_compiles_and_round_trips_field_names(string name, string json)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
@@ -40,6 +41,24 @@ public sealed class GeneratedCodeTests
         {
             Assert.True(roundTrip.RootElement.TryGetProperty(property.Name, out _), source);
         }
+    }
+
+    [Fact]
+    public async Task Independent_models_scope_nested_types_and_preserve_colliding_root_property_names()
+    {
+        const string customerJson = "{\"address\":{\"city\":\"Denver\",\"location\":{\"x\":1},\"locationType\":2},\"addressType\":1}";
+        const string orderJson = "{\"address\":{\"postal\":\"00501\"},\"Get\":{\"path\":\"orders\"}}";
+        await using var customerInput = new MemoryStream(Encoding.UTF8.GetBytes(customerJson));
+        await using var orderInput = new MemoryStream(Encoding.UTF8.GetBytes(orderJson));
+        string customerSource = CSharpWriter.Write(await JsonSchemaReader.ReadAsync(customerInput, "Customer", nestChildTypes: true), null);
+        string orderSource = CSharpWriter.Write(await JsonSchemaReader.ReadLinesAsync(orderInput, "Order", nestChildTypes: true), null);
+        Assembly assembly = Compile(customerSource + orderSource);
+        Type customer = assembly.GetType("Customer", true)!;
+        Type order = assembly.GetType("Order", true)!;
+        Assert.Equal(customer, customer.GetProperty("address")!.PropertyType.DeclaringType);
+        Assert.Equal(order, order.GetProperty("address")!.PropertyType.DeclaringType);
+        Assert.Equal(customerJson, JsonSerializer.Serialize(JsonSerializer.Deserialize(customerJson, customer), customer));
+        Assert.Equal(orderJson, JsonSerializer.Serialize(JsonSerializer.Deserialize(orderJson, order), order));
     }
 
     [Fact]

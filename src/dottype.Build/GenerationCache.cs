@@ -8,30 +8,31 @@ internal sealed record GenerationResult(string ExampleFile, string GeneratedFile
 
 internal static class GenerationCache
 {
-    public static async Task<GenerationResult> GenerateAsync(string settings, string projectDirectory,
+    public static async Task<GenerationResult> GenerateAsync(CliOptions generation, string projectDirectory,
         string projectFile, string cacheDirectory, CancellationToken cancellationToken = default)
     {
-        CliOptions generation = BuildOptions.Parse(settings, projectDirectory);
         string exampleFile = generation.InputPath;
         string directory = Path.GetFullPath(cacheDirectory, projectDirectory);
         Directory.CreateDirectory(directory);
-        string identity = Hash(Path.GetFullPath(projectFile));
+        string identity = Hash(JsonSerializer.Serialize(new[] { Path.GetFullPath(projectFile), exampleFile,
+            generation.Namespace, generation.TypeName ?? generation.DefaultTypeName }));
         string generatedFile = Path.Combine(directory, identity + ".g.cs");
         string cacheFile = Path.Combine(directory, identity + ".cache.json");
         await using FileStream gate = await AcquireLockAsync(Path.Combine(directory, identity + ".lock"), cancellationToken);
-        var inputInfo = new FileInfo(exampleFile);
-        long originalLength = inputInfo.Length;
-        DateTime originalModified = inputInfo.LastWriteTimeUtc;
+        InputStamp stamp = ReadStamp(exampleFile);
+        InputFormat format = generation.ResolveFormat();
         string fingerprint = Hash(JsonSerializer.Serialize(new
         {
             Input = exampleFile,
-            Modified = originalModified.Ticks,
-            Size = originalLength,
+            File = stamp,
             generation.TypeName,
             generation.Namespace,
-            Format = generation.ResolveFormat(),
+            Format = format,
             Compression = generation.ResolveCompression(),
             generation.SampleRecords,
+            generation.CsvHelperMap,
+            generation.ColumnTypes,
+            generation.NestChildTypes,
             Generator = typeof(GenerationCache).Assembly.ManifestModule.ModuleVersionId
         }));
         if (!generation.Force && File.Exists(cacheFile) && File.Exists(generatedFile))
@@ -48,18 +49,9 @@ internal static class GenerationCache
         }
         await using Stream rawInput = File.OpenRead(exampleFile);
         await using Stream input = InputStreams.Decode(rawInput, generation.ResolveCompression());
-        string name = generation.TypeName ?? generation.DefaultTypeName;
-        PocoSchema schema = generation.ResolveFormat() switch
-        {
-            InputFormat.Json => await JsonSchemaReader.ReadAsync(input, name, generation.SampleRecords, cancellationToken),
-            InputFormat.Csv => await CsvSchemaReader.ReadAsync(input, name, generation.SampleRecords, cancellationToken),
-            InputFormat.Parquet => await ParquetSchemaReader.ReadAsync(input, name, cancellationToken),
-            _ => throw new InvalidOperationException("Unsupported example format.")
-        };
-        inputInfo.Refresh();
-        if (!inputInfo.Exists || inputInfo.Length != originalLength || inputInfo.LastWriteTimeUtc != originalModified)
+        string source = await ExampleInference.GenerateAsync(input, format, generation, cancellationToken);
+        if (ReadStamp(exampleFile) != stamp)
             throw new IOException("The example changed during inference. Save it and retry the build.");
-        string source = CSharpWriter.Write(schema, generation.Namespace);
         if (!File.Exists(generatedFile) || await File.ReadAllTextAsync(generatedFile, cancellationToken) != source)
             await WriteAtomicallyAsync(generatedFile, source, cancellationToken);
         await WriteAtomicallyAsync(cacheFile, JsonSerializer.Serialize(new CacheEntry(fingerprint, Hash(source))), cancellationToken);
@@ -67,6 +59,12 @@ internal static class GenerationCache
     }
 
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    private static InputStamp ReadStamp(string path)
+    {
+        var file = new FileInfo(File.ResolveLinkTarget(path, returnFinalTarget: true)?.FullName ?? path);
+        return new(file.FullName, file.Length, file.LastWriteTimeUtc.Ticks);
+    }
 
     private static async Task<FileStream> AcquireLockAsync(string path, CancellationToken cancellationToken)
     {
@@ -90,4 +88,5 @@ internal static class GenerationCache
     }
 
     private sealed record CacheEntry(string Fingerprint, string SourceHash);
+    private sealed record InputStamp(string Path, long Length, long Modified);
 }

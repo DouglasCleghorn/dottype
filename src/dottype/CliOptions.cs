@@ -11,7 +11,8 @@ internal enum InputFormat
 {
     Json,
     Csv,
-    Parquet
+    Parquet,
+    JsonLines
 }
 
 internal sealed record CliOptions(
@@ -23,9 +24,12 @@ internal sealed record CliOptions(
     bool ShowHelp,
     InputCompression? Compression = null,
     int? SampleRecords = CliOptions.DefaultSampleRecords,
-    bool Force = false)
+    bool Force = false,
+    bool CsvHelperMap = false,
+    IReadOnlyDictionary<string, CsvType>? ColumnTypes = null)
 {
     public const int DefaultSampleRecords = 1000;
+    internal bool NestChildTypes { get; init; }
 
     private static readonly Lazy<string> Help = new(CreateHelp);
     public static string HelpText => Help.Value;
@@ -34,7 +38,7 @@ internal sealed record CliOptions(
     // Use Command so no process-dependent name, version action, or directives are added.
     private sealed class CommandDefinition
     {
-        public Command Command { get; } = new("dottype", "Generate C# types from example JSON, CSV, or Parquet data.");
+        public Command Command { get; } = new("dottype", "Generate C# types from example JSON, JSON Lines, CSV, or Parquet data.");
         public Argument<string?> Input { get; } = new("input")
         {
             HelpName = "input",
@@ -55,7 +59,7 @@ internal sealed record CliOptions(
         {
             HelpName = "format",
             Arity = ArgumentArity.ExactlyOne,
-            Description = "json, csv, parquet/parq (lowercase); inferred from extension, required for stdin."
+            Description = "json, jsonl/ndjson, csv, parquet/parq (lowercase); inferred from extension, required for stdin."
         };
         public Option<string?> Compression { get; } = new("--compression")
         {
@@ -75,6 +79,18 @@ internal sealed record CliOptions(
             Arity = ArgumentArity.Zero,
             Description = "Show help without generating types."
         };
+        public Option<bool> CsvHelperMap { get; } = new("--csvhelper-map")
+        {
+            Arity = ArgumentArity.Zero,
+            Description = "CSV only: generate a CsvHelper ClassMap alongside the type."
+        };
+        public Option<string[]> ColumnType { get; } = new("--column-type")
+        {
+            HelpName = "header=type",
+            Arity = ArgumentArity.OneOrMore,
+            AllowMultipleArgumentsPerToken = false,
+            Description = "CSV only: pin a header to string, bool, long, decimal, or double. Repeat for other headers."
+        };
         public Option<bool> Force { get; } = new("--force")
         {
             Arity = ArgumentArity.Zero,
@@ -83,14 +99,19 @@ internal sealed record CliOptions(
 
         public CommandDefinition(bool buildIntegration)
         {
-            Format.AcceptOnlyFromAmong("json", "csv", "parquet", "parq");
+            Format.AcceptOnlyFromAmong("json", "jsonl", "ndjson", "csv", "parquet", "parq");
             Compression.AcceptOnlyFromAmong("auto", "none", "gzip", "gz", "brotli", "br");
             SampleRecords.CompletionSources.Add("all", DefaultSampleRecords.ToString(CultureInfo.InvariantCulture));
+            ColumnType.Validators.Add(result =>
+            {
+                if (result.IdentifierTokenCount != result.Tokens.Count)
+                    result.AddError("Each --column-type expects one header=type value.");
+            });
             Input.CompletionSources.Add(CompletePaths);
             Output.CompletionSources.Add(CompletePaths);
 
             Command.Arguments.Add(Input);
-            foreach (Option option in new Option[] { Output, Name, Format, Compression, SampleRecords, Help, Force })
+            foreach (Option option in new Option[] { Output, Name, Format, Compression, SampleRecords, CsvHelperMap, ColumnType, Help, Force })
                 Command.Options.Add(option);
 
             // Recognize unavailable options to give the same actionable error for aliases and = syntax.
@@ -127,19 +148,29 @@ internal sealed record CliOptions(
             throw new CliException("Completion cursor must be a position within the command line.");
 
         var definition = new CommandDefinition(buildIntegration: false);
-        // The 2.0.11 text completion context splits on spaces without respecting quotes or '='.
+        // The text completion context splits on spaces without respecting quotes or '='.
         // Tokenize only up to the cursor instead, preserving a new word after unquoted whitespace.
         // The first token is the executable, which may be a full path supplied by a shell.
         List<string> words = CompletionWords(commandLine[..position]);
         ParseResult result = definition.Command.Parse(words.Skip(1).ToArray(), CreateParserConfiguration());
         Token? last = result.Tokens.Count == 0 ? null : result.Tokens[^1];
         Option? valueOption = definition.Command.Options.FirstOrDefault(option =>
-            last is not null && result.GetResult(option)?.Tokens.Contains(last) == true);
+            last?.Type == TokenType.Argument && result.GetResult(option)?.Tokens.Contains(last) == true);
         IEnumerable<CompletionItem> completions;
         if (result.Tokens.Take(result.Tokens.Count - 1).Any(token => token.Type == TokenType.DoubleDash))
             completions = definition.Input.GetCompletions(result.GetCompletionContext());
+        else if (last?.Type == TokenType.Option && words[^1] == last.Value)
+            completions = definition.Command.Options.Where(option => !option.Hidden)
+                .SelectMany(option => option.Aliases.Prepend(option.Name))
+                .Where(name => name.StartsWith(last.Value, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Select(name => new CompletionItem(name));
         else if (valueOption is not null)
-            completions = valueOption.GetCompletions(result.GetCompletionContext());
+        {
+            CompletionContext context = result.GetCompletionContext();
+            completions = valueOption.GetCompletions(context);
+            if (valueOption == definition.Format || valueOption == definition.Compression || valueOption == definition.SampleRecords)
+                completions = completions.Where(item => item.Label.StartsWith(context.WordToComplete, StringComparison.OrdinalIgnoreCase));
+        }
         else
             completions = result.GetCompletions();
         foreach (CompletionItem completion in completions) output.WriteLine(completion.Label);
@@ -182,7 +213,7 @@ internal sealed record CliOptions(
         if (word.Length == 0 || word == "-") matches.Add("-");
         try
         {
-            string directory = Path.GetDirectoryName(word) ?? "";
+            string directory = Path.GetDirectoryName(word) ?? Path.GetPathRoot(word) ?? "";
             string prefix = Path.GetFileName(word);
             StringComparison comparison = OperatingSystem.IsWindows()
                 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -199,6 +230,7 @@ internal sealed record CliOptions(
         {
             // An incomplete or inaccessible directory should simply yield no path suggestions.
         }
+        matches.Sort(StringComparer.Ordinal);
         return matches;
     }
 
@@ -223,6 +255,30 @@ internal sealed record CliOptions(
         return separator < 0 ? (name, null) : (name![(separator + 1)..], name[..separator]);
     }
 
+    private static Dictionary<string, CsvType>? ParseColumnTypes(string[]? values)
+    {
+        if (values is null or { Length: 0 }) return null;
+        var columns = new Dictionary<string, CsvType>(StringComparer.Ordinal);
+        foreach (string value in values)
+        {
+            int separator = value.LastIndexOf('=');
+            if (separator < 0) throw new CliException("--column-type expects header=type.");
+            string header = value[..separator];
+            CsvType type = value[(separator + 1)..] switch
+            {
+                "string" => CsvType.String,
+                "bool" => CsvType.Boolean,
+                "long" => CsvType.Integer,
+                "decimal" => CsvType.Decimal,
+                "double" => CsvType.Double,
+                _ => throw new CliException("--column-type accepts string, bool, long, decimal, or double.")
+            };
+            if (!columns.TryAdd(header, type))
+                throw new CliException($"More than one --column-type was supplied for header '{header}'.");
+        }
+        return columns;
+    }
+
     private static string CreateHelp()
     {
         var definition = new CommandDefinition(buildIntegration: false);
@@ -235,7 +291,7 @@ internal sealed record CliOptions(
 
             Examples:
               dottype customer.json --name Models.Customer --output Customer.cs
-              <producer> | dottype - --format json
+              <producer> | dottype - --format jsonl --name Models.Event
 
             Exit codes: 0 success, 1 invalid data/I/O failure, 2 invalid usage.
             Tab completion: see USAGE.md for shell setup; the CLI supports [suggest].
@@ -265,6 +321,7 @@ internal sealed record CliOptions(
         {
             null => null,
             "json" => InputFormat.Json,
+            "jsonl" or "ndjson" => InputFormat.JsonLines,
             "csv" => InputFormat.Csv,
             "parquet" or "parq" => InputFormat.Parquet,
             var value => throw new CliException($"Unsupported format '{value}'.")
@@ -279,9 +336,12 @@ internal sealed record CliOptions(
         };
         var options = new CliOptions(input ?? "", result.GetValue(definition.Output), name,
             namespaceName, format, result.GetValue(definition.Help), compression,
-            ParseSampleRecords(result.GetValue(definition.SampleRecords)!), result.GetValue(definition.Force));
+            ParseSampleRecords(result.GetValue(definition.SampleRecords)!), result.GetValue(definition.Force),
+            result.GetValue(definition.CsvHelperMap), ParseColumnTypes(result.GetValue(definition.ColumnType)));
         if (options.ShowHelp) return options;
         if (string.IsNullOrEmpty(input)) throw new CliException("Missing input file.");
+        if (options.OutputPath is not null && string.IsNullOrWhiteSpace(options.OutputPath))
+            throw new CliException("The output path cannot be empty.");
         if (buildIntegration && input == "-") throw BuildOnlyInputError(input);
         if (input != "-" && baseDirectory is not null) input = Path.GetFullPath(input, baseDirectory);
         if (requireInputExists && input != "-" && !File.Exists(input))
@@ -290,11 +350,14 @@ internal sealed record CliOptions(
             throw new CliException("The type name cannot be empty.");
         if (options.Namespace is not null && !Identifier.IsValidNamespace(options.Namespace))
             throw new CliException($"'{options.Namespace}' is not a valid C# namespace.");
-        return options with { InputPath = input };
+        options = options with { InputPath = input };
+        if ((options.CsvHelperMap || options.ColumnTypes is not null) && options.ResolveFormat() != InputFormat.Csv)
+            throw new CliException("--csvhelper-map and --column-type require CSV input.");
+        return options;
     }
 
     private static CliException BuildOnlyInputError(string argument)
-        => new($"'{argument}' is only available in the CLI. Build integration takes one example file and manages output automatically.");
+        => new($"'{argument}' is only available in the CLI. Build integration reads example files and manages output automatically.");
 
     public InputCompression ResolveCompression() => Compression ?? InputStreams.InferCompression(InputPath);
 
@@ -311,6 +374,7 @@ internal sealed record CliOptions(
         return Path.GetExtension(DataPath).ToLowerInvariant() switch
         {
             ".json" => InputFormat.Json,
+            ".jsonl" or ".ndjson" => InputFormat.JsonLines,
             ".csv" => InputFormat.Csv,
             ".parquet" or ".parq" => InputFormat.Parquet,
             var extension => throw new CliException($"Cannot infer a format from extension '{extension}'.")

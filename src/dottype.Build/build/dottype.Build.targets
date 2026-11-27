@@ -11,7 +11,7 @@
     </PropertyPageSchema>
     <!-- Evaluation-time registration lets Visual Studio notice changed examples. -->
     <UpToDateCheckInput Include="@(dottype)" />
-    <CompilerVisibleProperty Include="dottype" />
+    <CompilerVisibleProperty Include="dottypeInputs" />
     <CompilerVisibleProperty Include="dottypeProjectDirectory" />
     <CompilerVisibleProperty Include="dottypeProjectFile" />
     <CompilerVisibleProperty Include="dottypeCacheDirectory" />
@@ -19,19 +19,14 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="dottypeExample" />
   </ItemGroup>
   <Target Name="dottypeRemoveEditorGenerator" BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile;CompileDesignTime"
-          Condition="'$(BuildingInsideVisualStudio)' == 'true' or '$(MSBuildRuntimeType)' == 'Full'">
+          Condition="'$(DesignTimeBuild)' != 'true' or '$(BuildingInsideVisualStudio)' == 'true' or '$(MSBuildRuntimeType)' == 'Full'">
     <ItemGroup>
       <Analyzer Remove="$(_dottypeAnalyzerDirectory)*.dll" />
     </ItemGroup>
   </Target>
   <Target Name="dottypeGenerate" BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile;CompileDesignTime"
           Condition="'$(dottype)' != '' or '@(dottype)' != ''">
-    <Error Code="dottype001" Condition="'@(dottype->Count())' &gt; '1'"
-           Text="Choose one example file with Build Action dottype per project." />
-    <Error Code="dottype001" Condition="'@(dottype)' != '' and '$(dottype)' != ''"
-           Text="Use either a dottype property or a file with Build Action dottype, not both." />
     <PropertyGroup>
-      <dottype Condition="'@(dottype)' != ''">@(dottype->'&quot;%(FullPath)&quot; %(Options)')</dottype>
       <dottypeProjectDirectory>$(MSBuildProjectDirectory)</dottypeProjectDirectory>
       <dottypeProjectFile>$(MSBuildProjectFullPath)</dottypeProjectFile>
       <dottypeCacheDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'dottype'))</dottypeCacheDirectory>
@@ -40,14 +35,15 @@
            build. Its analyzer host need not load our .NET 10 editor generator. -->
       <dottypeDesignTime Condition="'$(DesignTimeBuild)' == 'true' and '$(BuildingInsideVisualStudio)' != 'true' and '$(MSBuildRuntimeType)' != 'Full'">true</dottypeDesignTime>
     </PropertyGroup>
-    <GenerateExampleType Settings="$(dottype)"
+    <GenerateExampleType Settings="$(dottype)" Examples="@(dottype)"
                          ProjectDirectory="$(MSBuildProjectDirectory)"
                          ProjectFile="$(MSBuildProjectFullPath)"
                          CacheDirectory="$(dottypeCacheDirectory)"
                          DesignTimeBuild="$(dottypeDesignTime)">
-      <Output TaskParameter="GeneratedFile" ItemName="_dottypeGenerated" />
-      <Output TaskParameter="ExampleFile" ItemName="_dottypeExample" />
-      <Output TaskParameter="CacheFile" ItemName="FileWrites" />
+      <Output TaskParameter="GeneratedFiles" ItemName="_dottypeGenerated" />
+      <Output TaskParameter="ExampleFiles" ItemName="_dottypeExample" />
+      <Output TaskParameter="CacheFiles" ItemName="FileWrites" />
+      <Output TaskParameter="EditorInputs" PropertyName="dottypeInputs" />
     </GenerateExampleType>
     <ItemGroup>
       <Compile Remove="@(_dottypeGenerated)" />
