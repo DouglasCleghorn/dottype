@@ -1,7 +1,7 @@
 param(
     [string] $PackageDirectory = "$PSScriptRoot/../artifacts/package",
     [string] $MSBuildPath,
-    [string] $ExpectedVersion = '0.2.0'
+    [string] $ExpectedVersion = '0.3.0'
 )
 $ErrorActionPreference = 'Stop'
 $scratch = [IO.Directory]::CreateTempSubdirectory('dottype-vs-smoke-').FullName
@@ -17,9 +17,9 @@ function Invoke-Build([string[]] $Arguments, [switch] $ExpectFailure) {
     return $output
 }
 try {
-    Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project />'
+    Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project><PropertyGroup><RestorePackagesPath>$(MSBuildThisFileDirectory)packages</RestorePackagesPath></PropertyGroup></Project>'
     Set-Content -LiteralPath (Join-Path $scratch 'Directory.Packages.props') -Value '<Project />'
-    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><config><add key='globalPackagesFolder' value='./packages' /></config></configuration>"
+    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping></configuration>"
     $project = Join-Path $scratch 'App.csproj'
     $example = Join-Path $scratch "customer's sample.json"
     $projectXml = @'
@@ -63,8 +63,9 @@ try {
     Invoke-Build @($project, '-t:Build', '-p:BuildingInsideVisualStudio=true', '-nologo') | Out-Null
     # Changing the metadata saved by the Properties window must invalidate cached types.
     Set-Content -LiteralPath $project -Value $projectXml.Replace('--name Models.Customer', '--name Changed.Renamed --sample all')
-    Invoke-Build $designArgs | Out-Null
-    $configuredSource = Get-Content -Raw -LiteralPath $source
+    $changedDesign = Invoke-Build $designArgs | ConvertFrom-Json
+    $changedFile = @($changedDesign.Items.Compile | Where-Object Identity -match 'dottype[/\\].*\.g\.cs$')[0].FullPath
+    $configuredSource = Get-Content -Raw -LiteralPath $changedFile
     if ($configuredSource -notmatch 'class Renamed' -or $configuredSource -notmatch 'namespace Changed') { throw 'Updated Options did not regenerate the configured type.' }
     Set-Content -LiteralPath $project -Value $projectXml
     Set-Content -LiteralPath $example -Value '{"displayName":"Ada"}'
@@ -77,8 +78,41 @@ try {
     Invoke-Build @($project, '-t:Build', '-p:BuildingInsideVisualStudio=true', '-nologo') -ExpectFailure | Out-Null
     Set-Content -LiteralPath $example -Value '{"displayName":"Ada"}'
     Invoke-Build $designArgs | Out-Null
-    # Multiple selections and mixing configuration styles must not silently select an input.
-    Set-Content -LiteralPath $project -Value $projectXml.Replace('</ItemGroup>', '<dottype Include="another.json" /></ItemGroup>')
+    # Two files with the same nested field must have independently usable types in both editor paths.
+    $orders = Join-Path $scratch 'orders.ndjson'
+    Set-Content -LiteralPath $example -Value '{"address":{"city":"Denver"}}'
+    Set-Content -LiteralPath $orders -Value '{"address":{"postal":"00501"}}'
+    $multi = $projectXml.Replace('</ItemGroup>', '<dottype Include="orders.ndjson" Options="--name Models.Order" /></ItemGroup>')
+    Set-Content -LiteralPath $project -Value $multi
+    Set-Content -LiteralPath (Join-Path $scratch 'Use.cs') -Value 'public class Use { public string City(Models.Customer.addressType address) => address.city; public string Postal(Models.Order.addressType address) => address.postal; }'
+    $two = Invoke-Build $designArgs | ConvertFrom-Json
+    if (@($two.Items.Compile | Where-Object Identity -match 'dottype[/\\].*\.g\.cs$').Count -ne 2) { throw 'Two models must supply two sources.' }
+    Invoke-Build @($project, '-t:Build', '-p:BuildingInsideVisualStudio=true', '-nologo') | Out-Null
+    Invoke-Build @($project, '-t:Rebuild', '-p:DesignTimeBuild=true', '-p:SkipCompilerExecution=false', '-nologo') | Out-Null
+    Set-Content -LiteralPath $orders -Value @('{}', 'invalid')
+    $partial = Invoke-Build @($project, '-t:Compile', '-p:DesignTimeBuild=true', '-p:BuildingInsideVisualStudio=true',
+        '-p:SkipCompilerExecution=true', '-p:ProvideCommandLineArgs=true', '-getItem:CscCommandLineArgs', '-nologo') -ExpectFailure
+    if (!$partial.Contains([IO.Path]::GetFileName($source)) -or $partial -notmatch 'line 2') {
+        throw 'An invalid order must report its line and preserve the customer model in the editor compilation.'
+    }
+    Set-Content -LiteralPath $orders -Value '{"address":{"postal":"00501"}}'
+    # Characters special to .editorconfig must survive transit to the editor.
+    Set-Content -LiteralPath (Join-Path $scratch 'items.csv') -Value @('ID#code;v1', '42')
+    $csvItem = '<dottype Include="items.csv" Options="--name Models.Import --column-type ''ID#code;v1=string''" />'
+    Set-Content -LiteralPath $project -Value $multi.Replace('</ItemGroup>', "$csvItem</ItemGroup>")
+    Set-Content -LiteralPath (Join-Path $scratch 'Use.cs') -Value 'public class Use { public string Id(Models.Import row) => row.ID_code_v1; }'
+    Invoke-Build @($project, '-t:Rebuild', '-p:DesignTimeBuild=true', '-p:SkipCompilerExecution=false', '-nologo') | Out-Null
+    $normal = Invoke-Build @($project, '-t:Build', '-getItem:Analyzer', '-nologo') | ConvertFrom-Json
+    if (@($normal.Items.Analyzer | Where-Object Identity -match 'dottype\.build[/\\].*[/\\]analyzers[/\\]').Count -gt 0) {
+        throw 'A regular build loaded the editor generator or its dependencies.'
+    }
+    # Going back to the single example removes the other models and restores its original child names.
+    Set-Content -LiteralPath $project -Value $projectXml
+    Set-Content -LiteralPath (Join-Path $scratch 'Use.cs') -Value 'public class Use { public string City(Models.addressType address) => address.city; }'
+    $single = Invoke-Build $designArgs | ConvertFrom-Json
+    if (@($single.Items.Compile | Where-Object Identity -match 'dottype[/\\].*\.g\.cs$').Count -ne 1) { throw 'Removing project items left stale models.' }
+    Invoke-Build @($project, '-t:Build', '-nologo') | Out-Null
+    Set-Content -LiteralPath $project -Value $multi.Replace('--name Models.Order', '--name Models.Customer')
     Invoke-Build $designArgs -ExpectFailure | Out-Null
     Set-Content -LiteralPath $project -Value $projectXml.Replace('</PropertyGroup>', '<dottype>another.json</dottype></PropertyGroup>')
     Invoke-Build $designArgs -ExpectFailure | Out-Null
@@ -86,7 +120,7 @@ try {
     Set-Content -LiteralPath $project -Value $projectXml.Replace('<dottype Include="customer''s sample.json" Options="--name Models.Customer" />', '')
     $removed = Invoke-Build $designArgs | ConvertFrom-Json
     if (@($removed.Items.Compile | Where-Object Identity -match 'dottype[/\\].*\.g\.cs$').Count -ne 0) { throw 'Removing Build Action left a generated type in compilation.' }
-    Write-Output 'Verified Visual Studio build integration: Build Action registration, first design-time generation, compilation, cache, refresh, diagnostics, and removal.'
+    Write-Output 'Verified project items, single and multiple models, design-time compilation, per-file options, cache refresh, diagnostics, and removal.'
 } finally {
     $resolved = [IO.Path]::GetFullPath($scratch)
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)

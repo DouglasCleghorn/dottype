@@ -6,8 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="dottype.Build" Version="0.2.0" />
-    <None Remove="customer.json" />
+    <PackageReference Include="dottype.Build" Version="0.3.0" />
+    <None Remove="customer.json;orders.ndjson" />
     <dottype Include="customer.json" Options="--name Models.Customer" />
+    <dottype Include="orders.ndjson" Options="--name Models.Order" />
+    <Content Include="customer.json;orders.ndjson" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 </Project>

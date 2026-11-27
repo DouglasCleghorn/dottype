@@ -8,6 +8,7 @@ internal static class ParquetSchemaReader
     public static async Task<PocoSchema> ReadAsync(
         Stream input,
         string requestedName,
+        bool nestChildTypes = false,
         CancellationToken cancellationToken = default)
     {
         MemoryStream? seekableCopy = null;
@@ -25,7 +26,7 @@ internal static class ParquetSchemaReader
                 input,
                 leaveStreamOpen: true,
                 cancellationToken: cancellationToken);
-            return new ParquetPocoBuilder().Build(reader.Schema.Fields, requestedName);
+            return new ParquetPocoBuilder(nestChildTypes).Build(reader.Schema.Fields, requestedName);
         }
         catch (Exception exception) when (exception is not OperationCanceledException and not InvalidDataException)
         {
@@ -37,16 +38,16 @@ internal static class ParquetSchemaReader
         }
     }
 
-    private sealed class ParquetPocoBuilder
+    private sealed class ParquetPocoBuilder(bool nestChildTypes)
     {
         private readonly NameAllocator _classNames = new();
         private readonly List<PocoClass> _classes = [];
 
         public PocoSchema Build(IReadOnlyList<Field> fields, string requestedName)
         {
-            string rootName = _classNames.Allocate(Identifier.MakeValid(requestedName, "Root"));
+            string rootName = _classNames.Allocate(Identifier.RootTypeName(requestedName));
             BuildClass(fields, rootName);
-            return new PocoSchema(rootName, _classes);
+            return new PocoSchema(rootName, _classes, nestChildTypes);
         }
 
         private void BuildClass(IReadOnlyList<Field> fields, string className)
@@ -55,6 +56,7 @@ internal static class ParquetSchemaReader
             _classes.Add(new PocoClass(className, []));
             var properties = new List<PocoProperty>(fields.Count);
             var propertyNames = NameAllocator.ForProperties(fields.Select(field => field.Name), className);
+            if (nestChildTypes && classIndex == 0) _classNames.Reserve(propertyNames.Values);
 
             foreach (Field field in fields)
             {

@@ -35,6 +35,10 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore dottype.slnx --locked-mode
 
+      - name: Verify editor fixture lock file
+        if: runner.os == 'Linux'
+        run: dotnet restore eng/create-editor-fixtures.cs --locked-mode
+
       - name: Build
         run: dotnet build dottype.slnx -c Release --no-restore
 
@@ -82,7 +86,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: dottype-nuget-0.2.0
+          name: dottype-nuget-0.3.0
           path: artifacts/package/*
           if-no-files-found: error
 
@@ -90,6 +94,6 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: dottype-windows-0.2.0
+          name: dottype-windows-0.3.0
           path: artifacts/portable/release/*
           if-no-files-found: error

@@ -14,6 +14,9 @@ public sealed class AppTests : IDisposable
     [InlineData("json", "")]
     [InlineData("json", ".gz")]
     [InlineData("json", ".br")]
+    [InlineData("jsonl", "")]
+    [InlineData("NDJSON", ".GZ")]
+    [InlineData("jsonl", ".br")]
     [InlineData("csv", "")]
     [InlineData("csv", ".gz")]
     [InlineData("csv", ".br")]
@@ -32,7 +35,7 @@ public sealed class AppTests : IDisposable
 
         Assert.Equal(0, result.Code);
         Assert.Empty(result.Error);
-        Assert.Contains("public partial class customers", result.Output);
+        Assert.Contains("public partial class @customers", result.Output);
         Assert.Contains("public long id", result.Output);
         Assert.Contains("JsonPropertyName(\"display-name\")", result.Output);
         Assert.DoesNotContain("customers_json", result.Output);
@@ -41,6 +44,8 @@ public sealed class AppTests : IDisposable
     [Theory]
     [InlineData("json", "gzip", ".gz")]
     [InlineData("json", "brotli", ".br")]
+    [InlineData("ndjson", "gzip", ".gz")]
+    [InlineData("jsonl", "brotli", ".br")]
     [InlineData("csv", "gz", ".gz")]
     [InlineData("csv", "br", ".br")]
     [InlineData("parquet", "gzip", ".gz")]
@@ -74,7 +79,7 @@ public sealed class AppTests : IDisposable
         var result = await Run([path, "--compression", "none", "-o", output]);
         Assert.Equal(0, result.Code);
         Assert.Empty(result.Output);
-        Assert.Contains("public partial class customers", await File.ReadAllTextAsync(output));
+        Assert.Contains("public partial class @customers", await File.ReadAllTextAsync(output));
     }
 
     [Theory]
@@ -128,7 +133,7 @@ public sealed class AppTests : IDisposable
         var result = await Run([path, "-o", output]);
         Assert.Equal(0, result.Code);
         Assert.Equal(original, await File.ReadAllBytesAsync(path));
-        Assert.Contains("public partial class customers", await File.ReadAllTextAsync(output));
+        Assert.Contains("public partial class @customers", await File.ReadAllTextAsync(output));
     }
 
     [Fact]
@@ -164,6 +169,8 @@ public sealed class AppTests : IDisposable
 
     [Theory]
     [InlineData("--name", "")]
+    [InlineData("--output", "")]
+    [InlineData("--output", " ")]
     [InlineData("--compression", "zip")]
     public async Task Invalid_options_return_usage_error(string option, string value)
     {
@@ -173,10 +180,25 @@ public sealed class AppTests : IDisposable
     }
 
     [Fact]
-    public async Task Cli_sampling_matches_build_defaults_and_supports_full_inference()
+    public async Task Directory_and_root_output_paths_report_usage_errors()
     {
-        string path = Path.Combine(_directory, "sample.json");
-        await File.WriteAllTextAsync(path, "[" + string.Join(",", Enumerable.Repeat("{\"id\":1}", 1000)) + ",{\"id\":\"later\",\"extra\":true}]");
+        foreach (string directory in new[] { _directory, Path.GetPathRoot(_directory)! })
+        {
+            await using var input = new MemoryStream("{}"u8.ToArray());
+            var result = await Run(["-", "--format", "json", "-o", directory], input);
+            Assert.Equal(2, result.Code);
+            Assert.Contains("output path", result.Error);
+        }
+    }
+
+    [Theory]
+    [InlineData("json")]
+    [InlineData("jsonl")]
+    public async Task Cli_sampling_matches_build_defaults_and_supports_full_inference(string format)
+    {
+        string path = Path.Combine(_directory, "sample." + format);
+        var records = Enumerable.Repeat("{\"id\":1}", 1000).Append("{\"id\":\"later\",\"extra\":true}");
+        await File.WriteAllTextAsync(path, format == "json" ? "[" + string.Join(",", records) + "]" : string.Join("\n", records));
         var sampled = await Run([path]);
         Assert.Equal(0, sampled.Code);
         Assert.Contains("long id", sampled.Output);
@@ -189,6 +211,7 @@ public sealed class AppTests : IDisposable
 
     [Theory]
     [InlineData("json", "[{\"id\":1},{\"id\":\"later\"}]")]
+    [InlineData("jsonl", "{\"id\":1}\n{\"id\":\"later\"}")]
     [InlineData("csv", "id\n1\nlater\n")]
     public async Task Explicit_sampling_applies_to_stdin(string format, string payload)
     {
@@ -196,6 +219,32 @@ public sealed class AppTests : IDisposable
         var result = await Run(["-", "--format", format, "--sample", "1"], input);
         Assert.Equal(0, result.Code);
         Assert.Contains("long id", result.Output);
+    }
+
+    [Fact]
+    public async Task Csv_maps_use_original_headers_after_repair_and_escape()
+    {
+        await using var input = new MemoryStream("a-b,a_b,class,\"in\"\"ches\",x=y\n1,2,3,4,5\n"u8.ToArray());
+        var result = await Run(["-", "--format", "csv", "--name", "Models.class", "--csvhelper-map",
+            "--column-type", "x=y=string"], input);
+        Assert.Equal(0, result.Code);
+        Assert.Contains("class classMap : global::CsvHelper.Configuration.ClassMap<@class>", result.Output);
+        Assert.Contains("Map(row => row.a_b_2).Name(\"a-b\")", result.Output);
+        Assert.Contains("Map(row => row.a_b).Name(\"a_b\")", result.Output);
+        Assert.Contains("Name(\"in\\\"ches\")", result.Output);
+        Assert.Contains("public string x_y", result.Output);
+    }
+
+    [Theory]
+    [InlineData("missing=string", "No CSV header")]
+    [InlineData("id=long", "row 3, column 'id'")]
+    public async Task Csv_pins_report_unknown_headers_and_invalid_sampled_values(string pin, string error)
+    {
+        await using var input = new MemoryStream("id\n1\nabc"u8.ToArray());
+        var result = await Run(["-", "--format", "csv", "--column-type", pin], input);
+        Assert.Equal(1, result.Code);
+        Assert.Contains(error, result.Error);
+        Assert.Empty(result.Output);
     }
 
     [Fact]
@@ -217,10 +266,11 @@ public sealed class AppTests : IDisposable
         var result = await Run([flag]);
         Assert.Equal(0, result.Code);
         Assert.Empty(result.Error);
-        foreach (string option in new[] { "--output", "-o", "--name", "-n", "--format", "-f", "--compression", "--sample", "--sample-records", "--help", "-h" })
+        foreach (string option in new[] { "--output", "-o", "--name", "-n", "--format", "-f", "--compression", "--sample", "--sample-records", "--csvhelper-map", "--column-type", "--help", "-h" })
             Assert.Contains(option, result.Output);
         Assert.Contains("default: 1000", result.Output);
         Assert.Contains("parquet/parq", result.Output);
+        Assert.Contains("jsonl/ndjson", result.Output);
         Assert.Contains("gzip/gz", result.Output);
         Assert.Contains("brotli/br", result.Output);
         Assert.Contains("all for full input", result.Output);
@@ -253,6 +303,8 @@ public sealed class AppTests : IDisposable
 
     private static async Task<byte[]> MakePayload(string format)
     {
+        if (format.Equals("jsonl", StringComparison.OrdinalIgnoreCase) || format.Equals("ndjson", StringComparison.OrdinalIgnoreCase))
+            return "{\"id\":1,\"display-name\":\"A\"}\r\n{\"id\":2,\"display-name\":\"B\"}"u8.ToArray();
         if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
             return Encoding.UTF8.GetBytes("{\"id\":1,\"display-name\":\"Alice\"}");
         if (format.Equals("csv", StringComparison.OrdinalIgnoreCase))

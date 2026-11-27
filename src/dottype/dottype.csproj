@@ -9,12 +9,12 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dottype</ToolCommandName>
     <PackageId>dottype</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Doug Cleghorn</Authors>
     <Copyright>Copyright © 2026 Doug Cleghorn</Copyright>
     <Title>dottype</Title>
-    <Description>Generate C# types from example JSON, CSV, or Parquet data with the dottype command-line tool. Infer nested types and nullability, preserve source field names, and read gzip or Brotli input. Save generated source or pipe it to stdout; generated code has no runtime dependency on dottype. Requires .NET 10.</Description>
-    <PackageTags>csharp;poco;code-generation;type-inference;json;csv;parquet;gzip;brotli;cli;dotnet-tool</PackageTags>
+    <Description>Generate C# types from JSON, JSON Lines, CSV, and Parquet files or stdin. Preserve original field names, optionally generate CsvHelper maps for spreadsheet headers, and sample compressed logs. Supports gzip and Brotli. Run once with dotnet tool exec or install as a CLI. Requires .NET 10.</Description>
+    <PackageTags>csharp;poco;code-generation;type-inference;json;jsonl;ndjson;csv;csvhelper;parquet;gzip;brotli;cli;dotnet-tool</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>

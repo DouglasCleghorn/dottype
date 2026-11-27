@@ -11,7 +11,7 @@
   <DynamicEnumProperty Name="{}{ItemType}" DisplayName="Build Action"
                        Category="Advanced" EnumProvider="ItemTypes" />
   <StringProperty Name="Options" DisplayName="dottype options" Category="dottype"
-                  Description="Example: --name Models.Customer. Options: --name (-n), --format (-f), --compression, --sample N|all (default: 1000; alias: --sample-records), --force. Format, compression, and all values must be lowercase. Leave empty for defaults. See USAGE.md for values and aliases." />
+                  Description="Set options for this file. Give each model a distinct --name (-n), e.g. Models.Customer. --format (-f) accepts json, jsonl/ndjson, csv, parquet/parq. Use --compression, --sample N|all (default: 1000; alias: --sample-records), or --force. For CSV, use --csvhelper-map and repeatable --column-type 'header=type'. Format, compression, column types, and all use lowercase. See USAGE.md for details." />
   <StringProperty Name="Identity" Visible="false" ReadOnly="true">
     <StringProperty.DataSource>
       <DataSource Persistence="Intrinsic" ItemType="dottype" PersistedName="Identity" />

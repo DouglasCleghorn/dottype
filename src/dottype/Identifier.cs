@@ -61,6 +61,13 @@ internal static class Identifier
         return Keywords.Contains(value) ? "@" + value : value;
     }
 
+    public static string RootTypeName(string requested)
+    {
+        string name = MakeValid(requested, "Root");
+        // C# 11 warns on unescaped type declarations consisting only of lowercase ASCII letters (CS8981).
+        return name.All(char.IsAsciiLetterLower) ? "@" + name : name;
+    }
+
     public static string Unescaped(string identifier) => identifier.StartsWith('@') ? identifier[1..] : identifier;
 
     public static bool IsValidNamespace(string value) =>

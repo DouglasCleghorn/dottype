@@ -1,13 +1,74 @@
+using System.Buffers;
+using System.Text;
 using System.Text.Json;
 
 namespace dottype;
 
 internal static class JsonSchemaReader
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+
+    public static async Task<PocoSchema> ReadLinesAsync(Stream input, string requestedName, int? sampleRecords = null,
+        bool nestChildTypes = false, CancellationToken cancellationToken = default)
+    {
+        if (sampleRecords is int limit) ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+        byte[] buffer = new byte[8192];
+        var line = new ArrayBufferWriter<byte>();
+        long records = 0;
+        long maxRecords = sampleRecords ?? long.MaxValue;
+        InferredType? root = null;
+        // Split bytes before decoding so read-ahead cannot validate a later, unsampled record.
+        while (records < maxRecords)
+        {
+            int read = await input.ReadAsync(buffer, cancellationToken);
+            if (read == 0)
+            {
+                if (line.WrittenCount != 0) AddRecord(line.WrittenMemory);
+                break;
+            }
+            int start = 0;
+            while (start < read && records < maxRecords)
+            {
+                int newline = Array.IndexOf(buffer, (byte)'\n', start, read - start);
+                if (newline < 0)
+                {
+                    line.Write(buffer.AsSpan(start, read - start));
+                    break;
+                }
+                line.Write(buffer.AsSpan(start, newline - start));
+                AddRecord(line.WrittenMemory);
+                line.ResetWrittenCount();
+                start = newline + 1;
+            }
+        }
+        return new JsonPocoBuilder(nestChildTypes).Build(root ?? throw new InvalidDataException("The JSON Lines input is empty."), requestedName);
+
+        void AddRecord(ReadOnlyMemory<byte> record)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++records == 1 && record.Span.StartsWith(Encoding.UTF8.Preamble))
+                record = record[Encoding.UTF8.Preamble.Length..];
+            try
+            {
+                _ = StrictUtf8.GetCharCount(record.Span);
+                using JsonDocument document = JsonDocument.Parse(record);
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                    throw new InvalidDataException($"JSON Lines line {records} must contain one JSON object.");
+                InferredType next = InferObject(document.RootElement);
+                root = root is null ? next : Merge(root, next);
+            }
+            catch (Exception exception) when (exception is JsonException or DecoderFallbackException or InvalidOperationException)
+            {
+                throw new InvalidDataException($"Invalid JSON Lines at line {records}: {exception.Message}", exception);
+            }
+        }
+    }
+
     public static async Task<PocoSchema> ReadAsync(
         Stream input,
         string requestedName,
         int? sampleRecords = null,
+        bool nestChildTypes = false,
         CancellationToken cancellationToken = default)
     {
         try
@@ -16,7 +77,7 @@ internal static class JsonSchemaReader
             {
                 ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
                 await using MemoryStream sample = await InferenceSample.ReadJsonAsync(input, limit, cancellationToken);
-                return await ReadAsync(sample, requestedName, cancellationToken: cancellationToken);
+                return await ReadAsync(sample, requestedName, nestChildTypes: nestChildTypes, cancellationToken: cancellationToken);
             }
             using JsonDocument document = await JsonDocument.ParseAsync(input, cancellationToken: cancellationToken);
             InferredType root = document.RootElement.ValueKind switch
@@ -31,7 +92,7 @@ internal static class JsonSchemaReader
                 throw new InvalidDataException("The JSON root array must contain objects.");
             }
 
-            return new JsonPocoBuilder().Build(root, requestedName);
+            return new JsonPocoBuilder(nestChildTypes).Build(root, requestedName);
         }
         catch (JsonException exception)
         {
@@ -89,7 +150,7 @@ internal static class JsonSchemaReader
         }
         return new InferredType(JsonKind.Array)
         {
-            ElementType = itemType ?? new InferredType(JsonKind.Unknown) { IsNullable = true }
+            ElementType = itemType ?? new InferredType(JsonKind.Unknown)
         };
     }
 
@@ -171,16 +232,16 @@ internal static class JsonSchemaReader
         public InferredType? ElementType { get; set; }
     }
 
-    private sealed class JsonPocoBuilder
+    private sealed class JsonPocoBuilder(bool nestChildTypes)
     {
         private readonly NameAllocator _classNames = new();
         private readonly List<PocoClass> _classes = [];
 
         public PocoSchema Build(InferredType root, string requestedName)
         {
-            string rootName = _classNames.Allocate(Identifier.MakeValid(requestedName, "Root"));
+            string rootName = _classNames.Allocate(Identifier.RootTypeName(requestedName));
             BuildClass(root, rootName);
-            return new PocoSchema(rootName, _classes);
+            return new PocoSchema(rootName, _classes, nestChildTypes);
         }
 
         private void BuildClass(InferredType type, string className)
@@ -189,6 +250,7 @@ internal static class JsonSchemaReader
             _classes.Add(new PocoClass(className, []));
             var properties = new List<PocoProperty>();
             var propertyNames = NameAllocator.ForProperties(type.Fields.Keys, className);
+            if (nestChildTypes && classIndex == 0) _classNames.Reserve(propertyNames.Values);
 
             foreach ((string sourceName, InferredType field) in type.Fields)
             {

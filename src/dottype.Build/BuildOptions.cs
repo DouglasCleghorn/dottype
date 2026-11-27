@@ -5,9 +5,13 @@ namespace dottype.Build;
 
 internal static class BuildOptions
 {
-    public static CliOptions Parse(string settings, string projectDirectory, bool requireInputExists = true)
-        => CliOptions.Parse(Tokenize(settings), requireInputExists,
+    public static CliOptions Parse(string settings, string projectDirectory, bool requireInputExists = true, string? itemPath = null)
+    {
+        List<string> args = Tokenize(settings);
+        if (itemPath is not null) args.Insert(0, itemPath);
+        return CliOptions.Parse(args, requireInputExists,
             buildIntegration: true, baseDirectory: projectDirectory);
+    }
 
     // Quotes group spaces; backslashes are literal so Windows paths survive.
     // This is an argument parser, never a shell command.

@@ -62,7 +62,7 @@ try {
         }
         [System.IO.File]::WriteAllBytes($path, $bytes)
         $source = Invoke-dottype -CliArguments @($path)
-        if ($source -notmatch 'public partial class customers\s') { throw 'Filename inference failed.' }
+        if ($source -notmatch 'public partial class @customers\s') { throw 'Filename inference failed.' }
         $source = Invoke-dottype -CliArguments @('-', '--format', 'json', '--compression', $compression) -StandardInput $bytes
         if ($source -notmatch 'public partial class Root\s') { throw 'Stdin name inference failed.' }
     }

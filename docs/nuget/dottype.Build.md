@@ -2,75 +2,58 @@
 
 # dottype build integration
 
-**Use example data as C# types in your application.** Generate types from JSON, CSV, or Parquet during compilation, with IntelliSense in Visual Studio and VS Code.
+Generate C# models from CSV, JSON, JSON Lines, or Parquet examples at build time. The types appear in IntelliSense after restore. Use several models in a project, or start with a single C# file and the .NET 10.0.400 SDK or later.
 
-This package integrates with MSBuild and file-based C# apps. For a command-line tool that saves generated source, use [dottype](https://www.nuget.org/packages/dottype).
+## Read an inventory in a single-file app
 
-## Install and configure
+Save the following as `inventory.csv`.
 
-Use the **.NET 10.0.400 SDK**. Visual Studio integration requires **Visual Studio 2026**; VS Code setup is covered in the [editor guide](https://github.com/DouglasCleghorn/dottype/blob/HEAD/USAGE.md#intellisense-refresh-and-errors).
+```csv
+File path,Size bytes,Asset ID
+/data/app.log,4096,42
+/data/notes.txt,2048
+```
+
+Save this as `inventory.cs` in the same directory.
+
+```csharp
+#:package dottype.Build@0.3.0
+#:package CsvHelper@33.1.0
+#:property dottype=inventory.csv --name InventoryRow --csvhelper-map --column-type 'Asset ID=string'
+
+using System.Globalization;
+using CsvHelper;
+using CsvHelper.Configuration;
+
+using var input = File.OpenText("inventory.csv");
+var config = new CsvConfiguration(CultureInfo.InvariantCulture) { MissingFieldFound = null };
+using var csv = new CsvReader(input, config);
+csv.Context.RegisterClassMap<InventoryRowMap>();
+Console.WriteLine($"{csv.GetRecords<InventoryRow>().Sum(row => row.Size_bytes)} bytes");
+```
+
+Run `dotnet run --file inventory.cs` from the directory containing both files. It prints **6144 bytes**. The map handles spaces in the original headers. The reader accepts the omitted asset ID on the second row, and pinning the ID to `string` preserves leading zeroes in future exports.
+
+## Use an ordinary project
 
 ```shell
 dotnet add package dottype.Build
 ```
 
-Save `customer.json` next to your project file:
-
-```json
-{"id":42,"name":"Ada"}
-```
-
-Add this property to your project:
+Add one item per model. These two files can both have an `address` object, each with its own fields.
 
 ```xml
-<PropertyGroup>
-  <dottype>customer.json --name Models.Customer</dottype>
-</PropertyGroup>
+<ItemGroup>
+  <None Remove="customer.json;orders.ndjson" />
+  <dottype Include="customer.json" Options="--name Models.Customer" />
+  <dottype Include="orders.ndjson" Options="--name Models.Order" />
+</ItemGroup>
 ```
 
-After restore, use the generated type in your application:
+Put one order object per line in `orders.ndjson`. The default sample includes 1,000 orders. Set `--sample all` on that item to include fields that appear later. Use `customer.address` and `order.address` in C# to access their typed fields. [Runnable two-model project](https://github.com/DouglasCleghorn/dottype/tree/HEAD/examples/visual-studio)
 
-```csharp
-var customer = new Models.Customer { id = 42, name = "Ada" };
-Console.WriteLine(customer.name);
-```
+For a single model, a project property such as `<dottype>customer.json --name Models.Customer</dottype>` also works. The default generated classes have no runtime dependency on dottype or CsvHelper.
 
-Paths are relative to the project. Configure **one example file per project**.
+In Visual Studio 2026, you can instead select the example file, press **F4**, set **Build Action** to **dottype**, and enter flags in **dottype options**. Build to refresh after saving an example.
 
-## Single-file C# app
-
-Put `app.cs` next to `customer.json`:
-
-```csharp
-#:package dottype.Build@0.2.0
-#:property dottype=customer.json --name Models.Customer
-
-var customer = new Models.Customer { id = 42, name = "Ada" };
-Console.WriteLine(customer.name);
-```
-
-Run `dotnet run --file app.cs`. Paths are relative to the app; use single quotes around paths with spaces.
-
-## Visual Studio
-
-As an alternative to the project property, select the example file in **Solution Explorer**, press **F4**, and set **Build Action** to **dottype**. Enter `--name Models.Customer` in **dottype options**.
-
-Use either the project property or the Build Action. IntelliSense is available after restore, before the first run. Save and **Build** to refresh generated types after changing an example. No Visual Studio extension is required.
-
-## Generation behavior
-
-- Infer format and outer gzip/Brotli compression from the example filename. Use `.parquet` files with internal compression for Parquet; no compression option is needed.
-- Examine the first **1,000 JSON/CSV records** by default; add `--sample all` to include later fields and type changes. Parquet uses its embedded schema.
-- Generate C# 10+ types, including nested types and inferred nullability, with no runtime dependency on dottype.
-- Preserve source field names, using mapping attributes when names need repair.
-- Keep generated files under the intermediate output directory and reuse unchanged inferred schemas.
-
-## Documentation and support
-
-- [Usage reference: arguments and equivalent examples](https://github.com/DouglasCleghorn/dottype/blob/HEAD/USAGE.md)
-- [IntelliSense, refresh, and troubleshooting](https://github.com/DouglasCleghorn/dottype/blob/HEAD/USAGE.md#intellisense-refresh-and-errors)
-- [Sample applications](https://github.com/DouglasCleghorn/dottype/tree/HEAD/examples)
-- [Release history and upgrade notes](https://github.com/DouglasCleghorn/dottype/blob/HEAD/CHANGELOG.md)
-- [Report a bug or request a feature](https://github.com/DouglasCleghorn/dottype/issues)
-- [AI agent documentation index](https://github.com/DouglasCleghorn/dottype/blob/HEAD/llms.txt)
-- [MIT license](https://github.com/DouglasCleghorn/dottype/blob/HEAD/LICENSE)
+[Project and editor setup](https://github.com/DouglasCleghorn/dottype/blob/HEAD/USAGE.md) · [Runnable inventory example](https://github.com/DouglasCleghorn/dottype/blob/HEAD/examples/file-app/inventory.cs) · [Standalone CLI](https://www.nuget.org/packages/dottype) · [Release notes](https://github.com/DouglasCleghorn/dottype/blob/HEAD/CHANGELOG.md) · [Report an issue](https://github.com/DouglasCleghorn/dottype/issues)

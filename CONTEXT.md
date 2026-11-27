@@ -1,6 +1,6 @@
 # dottype
 
-dottype describes data as C# types inferred from JSON, CSV, or Parquet input.
+dottype describes data as C# types inferred from JSON, JSON Lines, CSV, or Parquet input.
 
 ## Language
 

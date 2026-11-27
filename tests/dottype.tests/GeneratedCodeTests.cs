@@ -26,6 +26,7 @@ public sealed class GeneratedCodeTests
     [InlineData("record", "{\"record\":1,\"field\":2,\"required\":3}")]
     [InlineData("Root", "{\"x\":{},\"xType\":1,\"line\\u2028break\":1,\"a\\u200db\":1,\"ab\":2}")]
     [InlineData("Root", "{\"𐐀\":1,\"9lives\":2,\"\":3,\"quote\\\"\":4}")]
+    [InlineData("Row", "{\"ToString\":1,\"GetHashCode\":1,\"Equals\":1,\"GetType\":1,\"MemberwiseClone\":1,\"ReferenceEquals\":1,\"Finalize\":1}")]
     public async Task Generated_json_compiles_and_round_trips_field_names(string name, string json)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
@@ -43,6 +44,24 @@ public sealed class GeneratedCodeTests
     }
 
     [Fact]
+    public async Task Independent_models_scope_nested_types_and_preserve_colliding_root_property_names()
+    {
+        const string customerJson = "{\"address\":{\"city\":\"Denver\",\"location\":{\"x\":1},\"locationType\":2},\"addressType\":1}";
+        const string orderJson = "{\"address\":{\"postal\":\"00501\"},\"Get\":{\"path\":\"orders\"}}";
+        await using var customerInput = new MemoryStream(Encoding.UTF8.GetBytes(customerJson));
+        await using var orderInput = new MemoryStream(Encoding.UTF8.GetBytes(orderJson));
+        string customerSource = CSharpWriter.Write(await JsonSchemaReader.ReadAsync(customerInput, "Customer", nestChildTypes: true), null);
+        string orderSource = CSharpWriter.Write(await JsonSchemaReader.ReadLinesAsync(orderInput, "Order", nestChildTypes: true), null);
+        Assembly assembly = Compile(customerSource + orderSource);
+        Type customer = assembly.GetType("Customer", true)!;
+        Type order = assembly.GetType("Order", true)!;
+        Assert.Equal(customer, customer.GetProperty("address")!.PropertyType.DeclaringType);
+        Assert.Equal(order, order.GetProperty("address")!.PropertyType.DeclaringType);
+        Assert.Equal(customerJson, JsonSerializer.Serialize(JsonSerializer.Deserialize(customerJson, customer), customer));
+        Assert.Equal(orderJson, JsonSerializer.Serialize(JsonSerializer.Deserialize(orderJson, order), order));
+    }
+
+    [Fact]
     public async Task Csv_preserves_already_valid_names_when_a_repaired_name_collides()
     {
         await using var stream = new MemoryStream("a-b,a_b,Row\n1,2,3\n"u8.ToArray());
@@ -51,17 +70,27 @@ public sealed class GeneratedCodeTests
         Compile(CSharpWriter.Write(schema, null));
     }
 
-    private static Assembly Compile(string source)
+    [Fact]
+    public async Task A_lowercase_filename_can_supply_the_type_name_in_a_strict_modern_project()
+    {
+        await using var input = new MemoryStream("{\"id\":1}"u8.ToArray());
+        var options = CliOptions.Parse(["orders.ndjson"], requireInputExists: false);
+        string source = await ExampleInference.GenerateAsync(input, options.ResolveFormat(), options, default);
+        Assembly assembly = Compile(source + "\npublic class Consumer { public orders? Order { get; set; } }", LanguageVersion.CSharp11);
+        Assert.NotNull(assembly.GetType("orders"));
+    }
+
+    private static Assembly Compile(string source, LanguageVersion version = LanguageVersion.CSharp10)
     {
         using var assembly = new MemoryStream();
-        var result = CreateCompilation(source).Emit(assembly);
+        var result = CreateCompilation(source, version).Emit(assembly);
         Assert.True(result.Success, source + "\n" + string.Join("\n", result.Diagnostics));
         return Assembly.Load(assembly.ToArray());
     }
 
-    private static CSharpCompilation CreateCompilation(string source) => CSharpCompilation.Create(
+    private static CSharpCompilation CreateCompilation(string source, LanguageVersion version = LanguageVersion.CSharp10) => CSharpCompilation.Create(
         "Generated_" + Guid.NewGuid().ToString("N"),
-        [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp10))],
+        [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(version))],
         FrameworkReferences,
         new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
             generalDiagnosticOption: ReportDiagnostic.Error));
