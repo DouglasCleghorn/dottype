@@ -11,7 +11,7 @@ Save the following as `inventory.csv`.
 ```csv
 File path,Size bytes,Asset ID
 /data/app.log,4096,42
-/data/notes.txt,2048,81
+/data/notes.txt,2048
 ```
 
 Save this as `inventory.cs` in the same directory.
@@ -23,14 +23,16 @@ Save this as `inventory.cs` in the same directory.
 
 using System.Globalization;
 using CsvHelper;
+using CsvHelper.Configuration;
 
 using var input = File.OpenText("inventory.csv");
-using var csv = new CsvReader(input, CultureInfo.InvariantCulture);
+var config = new CsvConfiguration(CultureInfo.InvariantCulture) { MissingFieldFound = null };
+using var csv = new CsvReader(input, config);
 csv.Context.RegisterClassMap<InventoryRowMap>();
 Console.WriteLine($"{csv.GetRecords<InventoryRow>().Sum(row => row.Size_bytes)} bytes");
 ```
 
-Run `dotnet run --file inventory.cs` from the directory containing both files. It prints **6144 bytes**. The map handles spaces in the original headers. Pinning the asset ID to `string` preserves leading zeroes in future exports.
+Run `dotnet run --file inventory.cs` from the directory containing both files. It prints **6144 bytes**. The map handles spaces in the original headers. The reader accepts the omitted asset ID on the second row, and pinning the ID to `string` preserves leading zeroes in future exports.
 
 ## Use an ordinary project
 

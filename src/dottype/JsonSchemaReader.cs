@@ -239,7 +239,7 @@ internal static class JsonSchemaReader
 
         public PocoSchema Build(InferredType root, string requestedName)
         {
-            string rootName = _classNames.Allocate(Identifier.MakeValid(requestedName, "Root"));
+            string rootName = _classNames.Allocate(Identifier.RootTypeName(requestedName));
             BuildClass(root, rootName);
             return new PocoSchema(rootName, _classes, nestChildTypes);
         }

@@ -50,7 +50,7 @@ internal static class CsvSchemaReader
             throw new InvalidDataException("The CSV header is empty.");
         }
 
-        string className = Identifier.MakeValid(requestedName, "Root");
+        string className = Identifier.RootTypeName(requestedName);
         var propertyNames = NameAllocator.ForProperties(headers, className);
         if (columnTypes is not null)
         {

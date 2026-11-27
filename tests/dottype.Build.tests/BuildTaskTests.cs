@@ -222,7 +222,7 @@ public sealed class BuildTaskTests : IDisposable
         GenerateExampleType mapped = Run(settings);
         Assert.False(mapped.CacheHit);
         string source = File.ReadAllText(mapped.GeneratedFile);
-        Assert.Contains("ClassMap<example>", source);
+        Assert.Contains("ClassMap<@example>", source);
         Assert.Contains("public string Asset_ID", source);
         Assert.Contains("public double amount", source);
         Assert.True(Run(settings).CacheHit);

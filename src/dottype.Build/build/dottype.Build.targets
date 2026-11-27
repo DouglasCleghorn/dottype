@@ -34,12 +34,15 @@
       <!-- Visual Studio receives generated Compile items during its design-time
            build. Its analyzer host need not load our .NET 10 editor generator. -->
       <dottypeDesignTime Condition="'$(DesignTimeBuild)' == 'true' and '$(BuildingInsideVisualStudio)' != 'true' and '$(MSBuildRuntimeType)' != 'Full'">true</dottypeDesignTime>
+      <!-- Keep valid models in the editor compilation when a different example reports an error. -->
+      <_dottypeOnError>ErrorAndStop</_dottypeOnError>
+      <_dottypeOnError Condition="'$(DesignTimeBuild)' == 'true'">ErrorAndContinue</_dottypeOnError>
     </PropertyGroup>
     <GenerateExampleType Settings="$(dottype)" Examples="@(dottype)"
                          ProjectDirectory="$(MSBuildProjectDirectory)"
                          ProjectFile="$(MSBuildProjectFullPath)"
                          CacheDirectory="$(dottypeCacheDirectory)"
-                         DesignTimeBuild="$(dottypeDesignTime)">
+                         DesignTimeBuild="$(dottypeDesignTime)" ContinueOnError="$(_dottypeOnError)">
       <Output TaskParameter="GeneratedFiles" ItemName="_dottypeGenerated" />
       <Output TaskParameter="ExampleFiles" ItemName="_dottypeExample" />
       <Output TaskParameter="CacheFiles" ItemName="FileWrites" />

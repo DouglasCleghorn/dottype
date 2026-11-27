@@ -50,6 +50,8 @@ Use `--csvhelper-map` to generate a map alongside your class. For `--name Models
 
 Use `--column-type "Asset ID=string"` to keep a numeric-looking identifier as text. A pin also works independently of map generation. Header matching is exact and case-sensitive. Quote the entire assignment when the header contains spaces, using single quotes in file-app directives. The final equals sign separates the header and type. Unknown headers, duplicate pins, and values in sampled nonempty cells that cannot be read as the pinned type are errors. Missing and empty cells still make a column nullable.
 
+The second inventory row omits its trailing asset ID. CsvHelper's default reader raises `MissingFieldException` for short records. For exports like this, pass `new CsvConfiguration(CultureInfo.InvariantCulture) { MissingFieldFound = null }` to `CsvReader`. CsvHelper still validates the mapped header names and converts the cells that are present. Keep its default settings when a short row should be an import error.
+
 ### Run the example from a checkout
 
 The CSV options require dottype 0.3.0. To try the checked-out build before installing a published version, start in the repository root and run the following in PowerShell. A checkout-specific package cache keeps the sample separate from packages used by other projects.
@@ -227,7 +229,7 @@ Alternatively, run **C#: Rerun Source Generators**. Inference uses the saved fil
 
 The build cache uses input modification time, size, settings, and generator identity. Use `--force` when replacing content with identical metadata. Generated files stay under the intermediate output directory; do not edit them. `--no-build` skips refresh checks.
 
-Invalid build configuration, missing examples, or invalid sampled data report `dottype001`. The CLI exits with `0` for success, `1` for invalid data/I/O failure, or `2` for invalid usage.
+Invalid build configuration, missing examples, or invalid sampled data report `dottype001`. When one example fails, the editor can still use models from valid examples. An ordinary build fails until the error is fixed. The CLI exits with `0` for success, `1` for invalid data/I/O failure, or `2` for invalid usage.
 
 For compressed stdin, specify format and compression and use binary-safe redirection, for example in Bash or `cmd.exe`:
 

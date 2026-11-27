@@ -25,7 +25,7 @@ internal static class ExampleInputs
             {
                 CliOptions options = BuildOptions.Parse(input.Settings, directory, requireInputExists: false, itemPath: input.ItemPath);
                 resolved[index] = new(input.ItemPath, options with { NestChildTypes = inputs.Length > 1 }, null);
-                string root = Identifier.Unescaped(Identifier.MakeValid(options.TypeName ?? options.DefaultTypeName, "Root"));
+                string root = Identifier.Unescaped(Identifier.RootTypeName(options.TypeName ?? options.DefaultTypeName));
                 if (options.Namespace is not null)
                     root = string.Join('.', options.Namespace.Split('.').Select(Identifier.Unescaped)) + "." + root;
                 Claim(root, index);

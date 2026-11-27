@@ -70,17 +70,27 @@ public sealed class GeneratedCodeTests
         Compile(CSharpWriter.Write(schema, null));
     }
 
-    private static Assembly Compile(string source)
+    [Fact]
+    public async Task A_lowercase_filename_can_supply_the_type_name_in_a_strict_modern_project()
+    {
+        await using var input = new MemoryStream("{\"id\":1}"u8.ToArray());
+        var options = CliOptions.Parse(["orders.ndjson"], requireInputExists: false);
+        string source = await ExampleInference.GenerateAsync(input, options.ResolveFormat(), options, default);
+        Assembly assembly = Compile(source + "\npublic class Consumer { public orders? Order { get; set; } }", LanguageVersion.CSharp11);
+        Assert.NotNull(assembly.GetType("orders"));
+    }
+
+    private static Assembly Compile(string source, LanguageVersion version = LanguageVersion.CSharp10)
     {
         using var assembly = new MemoryStream();
-        var result = CreateCompilation(source).Emit(assembly);
+        var result = CreateCompilation(source, version).Emit(assembly);
         Assert.True(result.Success, source + "\n" + string.Join("\n", result.Diagnostics));
         return Assembly.Load(assembly.ToArray());
     }
 
-    private static CSharpCompilation CreateCompilation(string source) => CSharpCompilation.Create(
+    private static CSharpCompilation CreateCompilation(string source, LanguageVersion version = LanguageVersion.CSharp10) => CSharpCompilation.Create(
         "Generated_" + Guid.NewGuid().ToString("N"),
-        [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp10))],
+        [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(version))],
         FrameworkReferences,
         new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
             generalDiagnosticOption: ReportDiagnostic.Error));

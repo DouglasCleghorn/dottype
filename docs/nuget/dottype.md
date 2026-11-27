@@ -11,7 +11,7 @@ Create a console project with `dotnet new console` and save the following as `in
 ```csv
 File path,Size bytes,Asset ID
 /data/app.log,4096,42
-/data/notes.txt,2048,81
+/data/notes.txt,2048
 ```
 
 Use the .NET 10 SDK to generate the model and add the CSV reader to your application.
@@ -26,14 +26,16 @@ Replace `Program.cs` with the following and run `dotnet run`.
 ```csharp
 using System.Globalization;
 using CsvHelper;
+using CsvHelper.Configuration;
 
 using var input = File.OpenText("inventory.csv");
-using var csv = new CsvReader(input, CultureInfo.InvariantCulture);
+var config = new CsvConfiguration(CultureInfo.InvariantCulture) { MissingFieldFound = null };
+using var csv = new CsvReader(input, config);
 csv.Context.RegisterClassMap<InventoryRowMap>();
 Console.WriteLine($"{csv.GetRecords<InventoryRow>().Sum(row => row.Size_bytes)} bytes");
 ```
 
-The result is **6144 bytes**. The map binds `Size_bytes` to the original `Size bytes` header, including when columns change order. The type override keeps asset IDs as strings. For a build-time type with IntelliSense, see [dottype.Build](https://www.nuget.org/packages/dottype.Build).
+The result is **6144 bytes**. The map binds `Size_bytes` to the original `Size bytes` header, including when columns change order. The reader accepts the omitted asset ID on the second row, and the type override preserves IDs such as `00501` as text. For a build-time type with IntelliSense, see [dottype.Build](https://www.nuget.org/packages/dottype.Build).
 
 ## Install the command
 

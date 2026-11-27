@@ -17,9 +17,9 @@ function Invoke-Build([string[]] $Arguments, [switch] $ExpectFailure) {
     return $output
 }
 try {
-    Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project />'
+    Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project><PropertyGroup><RestorePackagesPath>$(MSBuildThisFileDirectory)packages</RestorePackagesPath></PropertyGroup></Project>'
     Set-Content -LiteralPath (Join-Path $scratch 'Directory.Packages.props') -Value '<Project />'
-    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping><config><add key='globalPackagesFolder' value='./packages' /></config></configuration>"
+    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping></configuration>"
     $project = Join-Path $scratch 'App.csproj'
     $example = Join-Path $scratch "customer's sample.json"
     $projectXml = @'
@@ -89,6 +89,13 @@ try {
     if (@($two.Items.Compile | Where-Object Identity -match 'dottype[/\\].*\.g\.cs$').Count -ne 2) { throw 'Two models must supply two sources.' }
     Invoke-Build @($project, '-t:Build', '-p:BuildingInsideVisualStudio=true', '-nologo') | Out-Null
     Invoke-Build @($project, '-t:Rebuild', '-p:DesignTimeBuild=true', '-p:SkipCompilerExecution=false', '-nologo') | Out-Null
+    Set-Content -LiteralPath $orders -Value @('{}', 'invalid')
+    $partial = Invoke-Build @($project, '-t:Compile', '-p:DesignTimeBuild=true', '-p:BuildingInsideVisualStudio=true',
+        '-p:SkipCompilerExecution=true', '-p:ProvideCommandLineArgs=true', '-getItem:CscCommandLineArgs', '-nologo') -ExpectFailure
+    if (!$partial.Contains([IO.Path]::GetFileName($source)) -or $partial -notmatch 'line 2') {
+        throw 'An invalid order must report its line and preserve the customer model in the editor compilation.'
+    }
+    Set-Content -LiteralPath $orders -Value '{"address":{"postal":"00501"}}'
     # Characters special to .editorconfig must survive transit to the editor.
     Set-Content -LiteralPath (Join-Path $scratch 'items.csv') -Value @('ID#code;v1', '42')
     $csvItem = '<dottype Include="items.csv" Options="--name Models.Import --column-type ''ID#code;v1=string''" />'

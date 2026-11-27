@@ -13,7 +13,7 @@ Save these two inventory records in a file named `inventory.csv`.
 ```csv
 File path,Size bytes,Asset ID
 /data/app.log,4096,42
-/data/notes.txt,2048,81
+/data/notes.txt,2048
 ```
 
 With the .NET 10.0.400 SDK or later, you can query those records directly from a C# file. Save the following as `inventory.cs` in the same directory.
@@ -25,15 +25,17 @@ With the .NET 10.0.400 SDK or later, you can query those records directly from a
 
 using System.Globalization;
 using CsvHelper;
+using CsvHelper.Configuration;
 
 using var input = File.OpenText(args.Length == 0 ? "inventory.csv" : args[0]);
-using var csv = new CsvReader(input, CultureInfo.InvariantCulture);
+var config = new CsvConfiguration(CultureInfo.InvariantCulture) { MissingFieldFound = null };
+using var csv = new CsvReader(input, config);
 csv.Context.RegisterClassMap<InventoryRowMap>();
 long bytes = csv.GetRecords<InventoryRow>().Sum(row => row.Size_bytes);
 Console.WriteLine($"{bytes} bytes");
 ```
 
-Run `dotnet run --file inventory.cs` from that directory. It prints **6144 bytes**. To read the next export with the same model, run `dotnet run --file inventory.cs -- next-inventory.csv`. The map matches the original headers even if they move. The type override keeps an ID such as `00501` as text.
+Run `dotnet run --file inventory.cs` from that directory. It prints **6144 bytes**. To read the next export with the same model, run `dotnet run --file inventory.cs -- next-inventory.csv`. The reader accepts the omitted ID on the second row. The map follows the headers when columns move, and the type override preserves an ID such as `00501` as text.
 
 [Example app](examples/file-app/inventory.cs) · [Sample CSV](examples/file-app/inventory.csv) · [Run from a source checkout](USAGE.md#run-the-example-from-a-checkout)
 

@@ -35,7 +35,7 @@ public sealed class AppTests : IDisposable
 
         Assert.Equal(0, result.Code);
         Assert.Empty(result.Error);
-        Assert.Contains("public partial class customers", result.Output);
+        Assert.Contains("public partial class @customers", result.Output);
         Assert.Contains("public long id", result.Output);
         Assert.Contains("JsonPropertyName(\"display-name\")", result.Output);
         Assert.DoesNotContain("customers_json", result.Output);
@@ -79,7 +79,7 @@ public sealed class AppTests : IDisposable
         var result = await Run([path, "--compression", "none", "-o", output]);
         Assert.Equal(0, result.Code);
         Assert.Empty(result.Output);
-        Assert.Contains("public partial class customers", await File.ReadAllTextAsync(output));
+        Assert.Contains("public partial class @customers", await File.ReadAllTextAsync(output));
     }
 
     [Theory]
@@ -133,7 +133,7 @@ public sealed class AppTests : IDisposable
         var result = await Run([path, "-o", output]);
         Assert.Equal(0, result.Code);
         Assert.Equal(original, await File.ReadAllBytesAsync(path));
-        Assert.Contains("public partial class customers", await File.ReadAllTextAsync(output));
+        Assert.Contains("public partial class @customers", await File.ReadAllTextAsync(output));
     }
 
     [Fact]

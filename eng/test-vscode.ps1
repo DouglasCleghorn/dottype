@@ -11,10 +11,10 @@ $scratch = Join-Path $repo ('artifacts/editor-test-' + [Guid]::NewGuid().ToStrin
 $appDirectory = Join-Path $scratch 'app'
 $userData = Join-Path $scratch 'user-data'
 New-Item -ItemType Directory -Path $appDirectory, (Join-Path $userData 'User') -Force | Out-Null
-Set-Content -LiteralPath (Join-Path $appDirectory 'Directory.Build.props') -Value '<Project />'
+Set-Content -LiteralPath (Join-Path $appDirectory 'Directory.Build.props') -Value '<Project><PropertyGroup><RestorePackagesPath>$(MSBuildThisFileDirectory)../packages</RestorePackagesPath></PropertyGroup></Project>'
 Set-Content -LiteralPath (Join-Path $appDirectory 'Directory.Packages.props') -Value '<Project />'
 $feed = [Security.SecurityElement]::Escape([IO.Path]::GetFullPath($PackageDirectory))
-Set-Content -LiteralPath (Join-Path $appDirectory 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><config><add key='globalPackagesFolder' value='../packages' /></config></configuration>"
+Set-Content -LiteralPath (Join-Path $appDirectory 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping></configuration>"
 if ($Format -eq 'parquet') {
     & dotnet run --file "$PSScriptRoot/create-editor-fixtures.cs" -- $appDirectory
     if ($LASTEXITCODE -ne 0) { throw 'Could not create Parquet editor fixtures.' }

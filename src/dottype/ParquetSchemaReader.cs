@@ -45,7 +45,7 @@ internal static class ParquetSchemaReader
 
         public PocoSchema Build(IReadOnlyList<Field> fields, string requestedName)
         {
-            string rootName = _classNames.Allocate(Identifier.MakeValid(requestedName, "Root"));
+            string rootName = _classNames.Allocate(Identifier.RootTypeName(requestedName));
             BuildClass(fields, rootName);
             return new PocoSchema(rootName, _classes, nestChildTypes);
         }

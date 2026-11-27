@@ -4,9 +4,11 @@
 
 using System.Globalization;
 using CsvHelper;
+using CsvHelper.Configuration;
 
 using var input = File.OpenText(args.Length == 0 ? "inventory.csv" : args[0]);
-using var csv = new CsvReader(input, CultureInfo.InvariantCulture);
+var config = new CsvConfiguration(CultureInfo.InvariantCulture) { MissingFieldFound = null };
+using var csv = new CsvReader(input, config);
 csv.Context.RegisterClassMap<InventoryRowMap>();
 long bytes = csv.GetRecords<InventoryRow>().Sum(row => row.Size_bytes);
 Console.WriteLine($"{bytes} bytes");

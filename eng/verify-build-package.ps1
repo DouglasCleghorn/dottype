@@ -17,9 +17,9 @@ function Invoke-Dotnet([string[]] $Arguments, [switch] $ExpectFailure) {
     return $output
 }
 try {
-    Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project />'
+    Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props') -Value '<Project><PropertyGroup><RestorePackagesPath>$(MSBuildThisFileDirectory)packages</RestorePackagesPath></PropertyGroup></Project>'
     Set-Content -LiteralPath (Join-Path $scratch 'Directory.Packages.props') -Value '<Project />'
-    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping><config><add key='globalPackagesFolder' value='./packages' /></config></configuration>"
+    Set-Content -LiteralPath (Join-Path $scratch 'NuGet.Config') -Value "<configuration><packageSources><clear /><add key='local' value='$feed' /><add key='nuget.org' value='https://api.nuget.org/v3/index.json' /></packageSources><packageSourceMapping><packageSource key='local'><package pattern='dottype.Build' /></packageSource><packageSource key='nuget.org'><package pattern='*' /></packageSource></packageSourceMapping></configuration>"
     $app = Join-Path $scratch 'app.cs'
     $example = Join-Path $scratch 'sample file.json'
     Set-Content -LiteralPath $example -Value '{"id":1}'
